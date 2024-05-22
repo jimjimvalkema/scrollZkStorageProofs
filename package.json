@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "ethers": "^6.12.1"
+  },
+  "type": "module"
+}
