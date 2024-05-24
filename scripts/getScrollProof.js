@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { buildPoseidon, buildPoseidonWasm, buildPoseidonOpt } from "circomlibjs";
+// import { buildPoseidon, buildPoseidonWasm, buildPoseidonOpt } from "circomlibjs";
 import {poseidon1, poseidon2} from "poseidon-lite";
 import * as fs from 'node:fs/promises';
 

@@ -1,6 +1,7 @@
 {
   "dependencies": {
-    "ethers": "^6.12.1"
+    "ethers": "^6.12.1",
+    "poseidon-lite": "^0.2.0"
   },
   "type": "module"
 }
