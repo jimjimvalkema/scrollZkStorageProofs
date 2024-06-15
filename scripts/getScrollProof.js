@@ -7,16 +7,30 @@ import {
 import * as fs from 'node:fs/promises';
 import * as snarkjs from "snarkjs"
 
-let windowIsEmpty = false
-if (window === undefined) {
-    var window = {}
-    windowIsEmpty= true
+let windowIsEmpty = true
+
+// Check if the environment is Node.js
+if (typeof process === "object" &&
+    typeof require === "function") {
+    windowIsEmpty = true;
+} else {
+    console.log("scdsda")
+    if (typeof window === "object") {
+        // Check if the environment is a Browser
+        console.log(window)
+        windowIsEmpty = false;
+        window.ethers = ethers
+        window.poseidon1 = poseidon1
+        window.poseidon2 = poseidon2
+        window.getProof = getProof
+    }
+
 }
-window.ethers = ethers
-window.poseidon1 = poseidon1
-window.poseidon2 = poseidon2
-window.poseidon3 = poseidon3
-window.poseidon16 = poseidon16
+
+
+
+
+
 
 export function formatProofNodes(proof) {
     let trie_proof = []
@@ -71,7 +85,7 @@ export async function getProof(contractAddress, storageKey, blockNumber, provide
     const proof = await provider.send('eth_getProof', params)
     return proof
 }
-window.getProof = getProof
+
 
 export async function getCodeHashPosiedon(contract) {
 
@@ -101,7 +115,7 @@ async function getScollProof() {
     const proof = await getProof(contractAddress, storageKey, blockNumber, provider)
     console.log({proof})
     //cheesy ah test to see if we're in browser
-    if(windowIsEmpty) {
+    if(windowIsEmpty === true) {
 
         await fs.writeFile('./out/scrollProof.json', JSON.stringify(proof, null, 2));
     }
