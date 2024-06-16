@@ -3,6 +3,10 @@ use dep::std::convert::From;
 use dep::std::hash::poseidon::bn254::perm;
 use dep::std::hash::poseidon;
 use std::field::bn254::decompose;
+use dep::std::bigint;
+use dep::std::{bigint::Bn254Fr,bigint::Bn254Fq, println};
+use dep::std::field::bytes32_to_field;
+
 
 // NodeTypeParent indicates the type of parent Node that has children.
 global NodeTypeParent  = 0;
@@ -60,7 +64,7 @@ struct Node {
     // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
 	// and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
 	// elemments would be calculated first
-    ValuePreimage: [[u8;32]; 2],  // []zkt.Byte32 
+    ValuePreimage: [[u8;32]],  // []zkt.Byte32 
 
     // CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
     CompressedFlags: u32,       // uint32
@@ -70,35 +74,6 @@ struct Node {
     valueHash: Field,           // *zkt.Hash
     // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
     KeyPreimage: [u8;32]          // *zkt.Byte32
-
-
-
-
-   
-}
-
-
-type Node struct {
-	// Type is the type of node in the tree.
-	Type NodeType
-	// ChildL is the node hash of the left child of a parent node.
-	ChildL *zkt.Hash
-	// ChildR is the node hash of the right child of a parent node.
-	ChildR *zkt.Hash
-	// NodeKey is the node's key stored in a leaf node.
-	NodeKey *zkt.Hash
-	// ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
-	// and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
-	// elemments would be calculated first
-	ValuePreimage []zkt.Byte32
-	// CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
-	CompressedFlags uint32
-	// nodeHash is the cache of the hash of the node to avoid recalculating
-	nodeHash *zkt.Hash
-	// valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
-	valueHash *zkt.Hash
-	// KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
-	KeyPreimage *zkt.Byte32
 }
 
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L203
@@ -137,59 +112,49 @@ pub fn node_hash(mut n: Node) -> Field {
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L48
 // HandlingElemsAndByte32 hash an arry mixed with field and byte32 elements, turn each byte32 into
 // field elements first then calculate the hash with HashElems
-pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8]]) -> Field {
-//     assert(false,"not implemented");
-//     0x0
-// }
-// func HandlingElemsAndByte32(flagArray uint32, elems []Byte32) (*Hash, error) {
-
+// TODO elems always contains [u8; 32] but length can be variable so: [[u8; 32]]
+pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
 	//ret := make([]*big.Int, len(elems))
     let mut ret: [Field] = &[];
 	for i in 0 .. elems.len() {
-		if (flagArray&(1<<i as u32) != 0) {
-            // hash_2WithDomain(HASH_DOMAIN_BYTE32, [elem[0][0:16],elem[0][16:32]])
-            // ret[i], err = elem.Hash()
+		if ((flagArray as u8) & 1<< (i as u8) != 0) {
             // elem.Hash() is just hash_2WithDomain with elem split up in 15 bytes
             // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
-
-            // let elemsArr = elems[0].as_array();
-            // let mut total:u64 = 0;
-            // for j in elemsArr {
-            //     total += j as u64;
-            // }
-            // let zero: u64 = 0;
-            // let elemField: Field = 0x0;
-            // elemField.from_be_bit(elemsArr);
-            let (first16, last16) = decompose(elems[i]);
-            elems[i].as_u64();
-			ret[i] = hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[first16, last16]);
+            // TODO check if we can split with bn254 decompose without losing data
+            let (firstHalfBytes, lastHalfBytes) = split_byte_arr(elems[i]);
+            let firstHalfField = bytes32_to_field(firstHalfBytes);
+            let lastHalfField = bytes32_to_field(lastHalfBytes);
+			ret = ret.push_back(hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[firstHalfField, lastHalfField]));
 		} else {
 			// ret[i] = new(big.Int).SetBytes(elem[:])
             // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
             // TODO research https://pkg.go.dev/math/big#Int.SetBytes
-            ret[i] = elems[i];
+            ret = ret.push_back(bytes32_to_field(elems[i]));
 		}
 	}
 
+    // is this a bug?? why trip up and hash a zero when there is only 1 item??
 	if ret.len() < 2 {
         assert(false, "TODO implement NewHashFromBigInt");
 		//NewHashFromBigInt(ret[0]), nil
 	}
+
+    // TODO do this cleaner when noir gets array slicing maybe??
     let (retFirstEl, ret) = ret.pop_front();
     let (retSecondEl, ret) = ret.pop_front();
 	hash_elems(retFirstEl, retSecondEl, ret)
 }
 
-// pub fn split_byte_arr(el: [[u8;32]])  {
-//     let mut firstHalf: [[u8;32]] = [];
-//     let mut lastHalf:  [[u8;32]] = [];
-//     let splitPoint = el.len()/2;
-//     for i in 0 .. splitPoint {
-//         firstHalf[i] = el[i];
-//         lastHalf[i] = el[splitPoint+i];
-//     }
-//     let lasHalfField = 
-// }
+pub fn split_byte_arr(el: [u8;32]) -> ([u8;32], [u8;32]) {
+    let mut firstHalf: [u8;32] = [0;32];
+    let mut lastHalf:  [u8;32] = [0;32];
+    let splitPoint = 16;
+    for i in 0 .. splitPoint {
+        firstHalf[i] = el[i];
+        lastHalf[i] = el[splitPoint+i];
+    }
+    (firstHalf, lastHalf)
+}
 
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L40
 // HashElems call HashElemsWithDomain with a domain of HASH_DOMAIN_ELEMS_BASE(256)*<element counts>
@@ -205,25 +170,35 @@ pub fn hash_elems(firstEl: Field, secondEl: Field, elems: [Field]) -> Field {
 pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field, elems: [Field]) -> Field {
 	let l = elems.len();
 	let mut baseH: Field = hash_2WithDomain(domain, [firstElem, secondElem]);
+    println("llllllllllllllllllllllllllllllllllllll");
+    println(l);
     if l == 1 {
 		baseH  = hash_elems_with_domain(domain, baseH, elems[0], &[]);
 	} else if l != 0 {
-        let mut tmp:[Field] = &[]; 
-        let tmpLen = (l+1)/2;
-        //tmp =: make([]*big.Int, (l+1)/2)
-        for i in 0 .. tmpLen {
-            if (i+1)*2 > l {
-                tmp[i] = elems[i*2];
-            } else {
-                tmp[i] = hash_2WithDomain(domain, [elems[i*2] , elems[(i+1)*2]] );
-            }
-        }
-        //TODO research if can be done without popping
-        let (firstEl, poppedTmp) = tmp.pop_front();
-        baseH = hash_elems_with_domain(domain, baseH, firstEl, poppedTmp);
+        assert(false, "NOT IMPLEMENTED hash_elems_with_domain l > 1");
+        // TODO compiler panics from this report the bug
+        // let mut tmp:[Field] = &[]; 
+        // let tmpLen = (l+1)/2;
+        // //tmp =: make([]*big.Int, (l+1)/2)
+        // for i in 0 .. tmpLen {
+        //     if (i+1)*2 > l {
+        //         tmp = tmp.push_back(elems[i*2]);
+        //     } else {
+        //         tmp = tmp.push_back(hash_2WithDomain(domain, [elems[i*2] , elems[(i+1)*2]] ));
+        //     }
+        // }
+        // //TODO research if can be done without popping
+        // let (firstEl, poppedTmp) = tmp.pop_front();
+        // baseH = hash_elems_with_domain(domain, baseH, firstEl, poppedTmp);
+    
     }
+    
 
+    
+    
     baseH
+
+    
 }
 
 
@@ -370,8 +345,41 @@ fn test_main() {
     // 0x06
     // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
     // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+    let mut node:Node = Node {
+        // Type is the type of node in the tree.
+        Type: 0x04,                // NodeType u8 //type NodeType byte
 
+        // ChildL is the node hash of the left child of a parent node.
+        ChildL: 0x0,              // *zkt.Hash
+        // NodeKey is the node's key stored in a leaf node.
+        ChildR: 0x0,              // *zkt.Hash
 
+        // NodeKey is the node's key stored in a leaf node.
+        NodeKey: 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a,             // *zkt.Hash
+
+        // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
+        // and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
+        // elemments would be calculated first
+        ValuePreimage: [
+            0x00000000000000000000000000000000000000000000000000900661d8af4c86.to_be_bytes(32).as_array(),
+            0x20.to_be_bytes(32).as_array(),
+            0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()
+        ],
+
+        // CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
+        CompressedFlags: 0x50,       // uint32 //01010000
+        // nodeHash is the cache of the hash of the node to avoid recalculating
+        nodeHash: 0x0,            // *zkt.Hash
+        // valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
+        valueHash: 0x0,           // *zkt.Hash
+        // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
+        KeyPreimage: 0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()          // *zkt.Byte32
+    };
+
+    let nodeHashReimplemented = node_hash(node);
+    println("nodeHashReimplemented");
+    println(nodeHashReimplemented);
+    
 
 
     //////------------------------poseidon storage key
