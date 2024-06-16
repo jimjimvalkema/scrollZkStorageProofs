@@ -247,8 +247,6 @@ fn test_main() {
     let storageKeyPreImageArr = [
         0x0000000000000000000000004402c128c2337d7a6c4c867be68f7714a4e06429, 0x0000000000000000000000000000000000000000000000000000000000000000
     ];
-    let storageKeyPreImageConcat = 0x0000000000000000000000004402c128c2337d7a6c4c867be68f7714a4e064290000000000000000000000000000000000000000000000000000000000000000;
-
     //ethers.keccak(storageKeyPreImageConcat)
     //identifier of the storage value and contains the key and slot of the mapping 
     let storageKey = 0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff;
@@ -285,16 +283,6 @@ fn test_main() {
     // value_hash = poseidon(<leaf element>, <leaf element>) | poseidon(<value hash>, <value hash>)
 
     // leaf_element = <value field as field> | poseidon(<compressed field as field>, <compressed field as field>) | field(0)
-
-
-            
-    //leafNodeProofDeconstructed
-    // 0x04
-    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key or sybling??
-    // 01010000
-    // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value
-    // 20                                                               // no clue?? = 32 decimal,  32 bytes???, 256 bits//
-    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key
 
     //We encode the path of a new leaf node by traversing the secure key from Least Significant Bit (LSB) to the Most Significant Bit (MSB). At each step, if the bit is 0, we will traverse to the left child; otherwise, traverse to the right child.
     // start at end, 0 = left
@@ -333,8 +321,8 @@ fn test_main() {
     println("leafNodeHash");
     println(leafNodeHash);
 
-    let nodeType = 0x04;
-    let leafSybling = 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a;
+    let mut nodeType = 0x04;
+    let mut leafSybling = 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a;
     let mut leafNodeWithSyblingHash = hash_2WithDomain(nodeType, [leafNodeHash, leafSybling]);
     println("leafNodeWithSyblingHash Left");
     println(leafNodeWithSyblingHash);
@@ -342,9 +330,14 @@ fn test_main() {
     // println("leafNodeWithSyblingHash Right");
     // println(leafNodeWithSyblingHash);
 
-    // 0x06
-    // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
-    // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+    //leafNodeProofDeconstructed
+    // 0x04
+    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key or sybling??
+    // 01010000
+    // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value
+    // 20                                                               // no clue?? = 32 decimal,  32 bytes???, 256 bits//
+    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key
+
     let mut node:Node = Node {
         // Type is the type of node in the tree.
         Type: 0x04,                // NodeType u8 //type NodeType byte
@@ -373,13 +366,28 @@ fn test_main() {
         // valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
         valueHash: 0x0,           // *zkt.Hash
         // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
-        KeyPreimage: 0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()          // *zkt.Byte32
+        KeyPreimage: 0x0.to_be_bytes(32).as_array()    //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()          // *zkt.Byte32
     };
 
     let nodeHashReimplemented = node_hash(node);
     println("nodeHashReimplemented");
     println(nodeHashReimplemented);
-    
+
+    nodeType = 0x04;
+    leafSybling = 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a;
+    let leafNodeWithSyblingHash = hash_2WithDomain(nodeType, [nodeHashReimplemented, leafSybling]);
+    println("leafNodeWithSyblingHash Left");
+    println(leafNodeWithSyblingHash);
+
+    // one level up from leaf
+    // 0x06
+    // 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
+    // 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+    let possibleNodeHashes = [0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe, 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040];
+    let leafHashIsIn:bool = possibleNodeHashes.any(|hash| hash == nodeHashReimplemented);
+    let nodeHashIsIn:bool = possibleNodeHashes.any(|hash| hash == leafNodeWithSyblingHash);
+
+    assert((leafHashIsIn | nodeHashIsIn),  "leafHashIsIn or nodeHashIsIn do not match any of the next hashes from proof");
 
 
     //////------------------------poseidon storage key
