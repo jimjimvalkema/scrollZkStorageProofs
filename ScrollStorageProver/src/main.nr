@@ -1,6 +1,8 @@
 use dep::std;
+use dep::std::convert::From;
 use dep::std::hash::poseidon::bn254::perm;
 use dep::std::hash::poseidon;
+use std::field::bn254::decompose;
 
 // NodeTypeParent indicates the type of parent Node that has children.
 global NodeTypeParent  = 0;
@@ -25,6 +27,9 @@ global NodeTypeBranch_2  = 8;
 // branch node for both child are branch nodes
 global NodeTypeBranch_3  = 9;
 
+global HASH_DOMAIN_ELEMS_BASE:u64 = 256;
+global HASH_DOMAIN_BYTE32:u64     = 2 * HASH_DOMAIN_ELEMS_BASE;
+
 //used hash_2 from noirs std as example
 //https://github.com/noir-lang/noir/blob/8a322998ee60875f7abe4dc222f8fdc20cb0ee0a/noir_stdlib/src/hash/poseidon/bn254.nr#L24
 //and from the go-ethereum scroll repo
@@ -37,16 +42,63 @@ pub fn hash_2WithDomain(domain: Field, input: [Field; 2]) -> Field {
     }
     perm::x5_3(state)[0]
 }
-
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L92
+// Node is the struct that represents a node in the MT. The node should not be
+// modified after creation because the cached key won't be updated.
 struct Node {
-    nodeHash: Field,
-    valueHash: Field,
-    NodeKey: Field,
-    Type: Field,
-    ChildL: Field,
-    ChildR: Field,
-    CompressedFlags: u32,
-    ValuePreimage: [u8]
+    // Type is the type of node in the tree.
+    Type: Field,                // NodeType u8 //type NodeType byte
+
+    // ChildL is the node hash of the left child of a parent node.
+    ChildL: Field,              // *zkt.Hash
+    // NodeKey is the node's key stored in a leaf node.
+    ChildR: Field,              // *zkt.Hash
+
+    // NodeKey is the node's key stored in a leaf node.
+    NodeKey: Field,             // *zkt.Hash
+
+    // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
+	// and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
+	// elemments would be calculated first
+    ValuePreimage: [[u8;32]; 2],  // []zkt.Byte32 
+
+    // CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
+    CompressedFlags: u32,       // uint32
+    // nodeHash is the cache of the hash of the node to avoid recalculating
+    nodeHash: Field,            // *zkt.Hash
+    // valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
+    valueHash: Field,           // *zkt.Hash
+    // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
+    KeyPreimage: [u8;32]          // *zkt.Byte32
+
+
+
+
+   
+}
+
+
+type Node struct {
+	// Type is the type of node in the tree.
+	Type NodeType
+	// ChildL is the node hash of the left child of a parent node.
+	ChildL *zkt.Hash
+	// ChildR is the node hash of the right child of a parent node.
+	ChildR *zkt.Hash
+	// NodeKey is the node's key stored in a leaf node.
+	NodeKey *zkt.Hash
+	// ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
+	// and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
+	// elemments would be calculated first
+	ValuePreimage []zkt.Byte32
+	// CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
+	CompressedFlags uint32
+	// nodeHash is the cache of the hash of the node to avoid recalculating
+	nodeHash *zkt.Hash
+	// valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
+	valueHash *zkt.Hash
+	// KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
+	KeyPreimage *zkt.Byte32
 }
 
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L203
@@ -85,70 +137,96 @@ pub fn node_hash(mut n: Node) -> Field {
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L48
 // HandlingElemsAndByte32 hash an arry mixed with field and byte32 elements, turn each byte32 into
 // field elements first then calculate the hash with HashElems
-pub fn handling_elems_and_byte32(flagArray: u32, elems: [u8]) -> Field {
-    assert(false,"not implemented");
-    0x0
-}
+pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8]]) -> Field {
+//     assert(false,"not implemented");
+//     0x0
+// }
 // func HandlingElemsAndByte32(flagArray uint32, elems []Byte32) (*Hash, error) {
 
-// 	ret := make([]*big.Int, len(elems))
-// 	var err error
+	//ret := make([]*big.Int, len(elems))
+    let mut ret: [Field] = &[];
+	for i in 0 .. elems.len() {
+		if (flagArray&(1<<i as u32) != 0) {
+            // hash_2WithDomain(HASH_DOMAIN_BYTE32, [elem[0][0:16],elem[0][16:32]])
+            // ret[i], err = elem.Hash()
+            // elem.Hash() is just hash_2WithDomain with elem split up in 15 bytes
+            // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
 
-// 	for i, elem := range elems {
-// 		if flagArray&(1<<i) != 0 {
-// 			ret[i], err = elem.Hash()
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 		} else {
-// 			ret[i] = new(big.Int).SetBytes(elem[:])
-// 		}
-// 	}
+            // let elemsArr = elems[0].as_array();
+            // let mut total:u64 = 0;
+            // for j in elemsArr {
+            //     total += j as u64;
+            // }
+            // let zero: u64 = 0;
+            // let elemField: Field = 0x0;
+            // elemField.from_be_bit(elemsArr);
+            let (first16, last16) = decompose(elems[i]);
+            elems[i].as_u64();
+			ret[i] = hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[first16, last16]);
+		} else {
+			// ret[i] = new(big.Int).SetBytes(elem[:])
+            // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
+            // TODO research https://pkg.go.dev/math/big#Int.SetBytes
+            ret[i] = elems[i];
+		}
+	}
 
-// 	if len(ret) < 2 {
-// 		return NewHashFromBigInt(ret[0]), nil
-// 	}
+	if ret.len() < 2 {
+        assert(false, "TODO implement NewHashFromBigInt");
+		//NewHashFromBigInt(ret[0]), nil
+	}
+    let (retFirstEl, ret) = ret.pop_front();
+    let (retSecondEl, ret) = ret.pop_front();
+	hash_elems(retFirstEl, retSecondEl, ret)
+}
 
-// 	return HashElems(ret[0], ret[1], ret[2:]...)
-
+// pub fn split_byte_arr(el: [[u8;32]])  {
+//     let mut firstHalf: [[u8;32]] = [];
+//     let mut lastHalf:  [[u8;32]] = [];
+//     let splitPoint = el.len()/2;
+//     for i in 0 .. splitPoint {
+//         firstHalf[i] = el[i];
+//         lastHalf[i] = el[splitPoint+i];
+//     }
+//     let lasHalfField = 
 // }
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L40
+// HashElems call HashElemsWithDomain with a domain of HASH_DOMAIN_ELEMS_BASE(256)*<element counts>
+pub fn hash_elems(firstEl: Field, secondEl: Field, elems: [Field]) -> Field {
+    let domain: Field = (elems.len()* HASH_DOMAIN_ELEMS_BASE + HASH_DOMAIN_BYTE32) as Field;
+	hash_elems_with_domain(domain,firstEl, secondEl, elems)
+}
 
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L10
 // HashElemsWithDomain performs a recursive poseidon hash over the array of ElemBytes, each hash
 // reduce 2 fieds into one, with a specified domain field which would be used in
 // every recursiving call
 pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field, elems: [Field]) -> Field {
-    assert(false,"not implemented");
-    0x0
+	let l = elems.len();
+	let mut baseH: Field = hash_2WithDomain(domain, [firstElem, secondElem]);
+    if l == 1 {
+		baseH  = hash_elems_with_domain(domain, baseH, elems[0], &[]);
+	} else if l != 0 {
+        let mut tmp:[Field] = &[]; 
+        let tmpLen = (l+1)/2;
+        //tmp =: make([]*big.Int, (l+1)/2)
+        for i in 0 .. tmpLen {
+            if (i+1)*2 > l {
+                tmp[i] = elems[i*2];
+            } else {
+                tmp[i] = hash_2WithDomain(domain, [elems[i*2] , elems[(i+1)*2]] );
+            }
+        }
+        //TODO research if can be done without popping
+        let (firstEl, poppedTmp) = tmp.pop_front();
+        baseH = hash_elems_with_domain(domain, baseH, firstEl, poppedTmp);
+    }
+
+    baseH
 }
-// func HashElemsWithDomain(domain, fst, snd *big.Int, elems ...*big.Int) (*Hash, error) {
 
-// 	l := len(elems)
-// 	baseH, err := hashScheme([]*big.Int{fst, snd}, domain)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if l == 0 {
-// 		return NewHashFromBigInt(baseH), nil
-// 	} else if l == 1 {
-// 		return HashElemsWithDomain(domain, baseH, elems[0])
-// 	}
 
-// 	tmp := make([]*big.Int, (l+1)/2)
-// 	for i := range tmp {
-// 		if (i+1)*2 > l {
-// 			tmp[i] = elems[i*2]
-// 		} else {
-// 			h, err := hashScheme(elems[i*2:(i+1)*2], domain)
-// 			if err != nil {
-// 				return nil, err
-// 			}
-// 			tmp[i] = h
-// 		}
-// 	}
-
-// 	return HashElemsWithDomain(domain, baseH, tmp[0], tmp[1:]...)
-// }
 
 
 
@@ -165,10 +243,13 @@ pub fn leaf_hash(key: Field, valueHash: Field) -> Field {
 
 // NewHashFromBigInt returns a *Hash representation of the given *big.Int
 // basically converts int to reverse byte order
-// func NewHashFromBigInt(b *big.Int) *Hash {
-// 	r := &Hash{}
-// 	copy(r[:], ReverseByteOrder(b.Bytes()))
-// 	return r
+//func NewHashFromBigInt(b *big.Int) *Hash {
+// pub fn new_hash_from_big_int(b: Field) -> Field {
+//     let reversed = b.to_le_bytes(32);
+//     reversed.
+// 	// r := &Hash{}
+// 	// copy(r[:], ReverseByteOrder(b.Bytes()))
+// 	// return r
 // }
 
 #[test]
