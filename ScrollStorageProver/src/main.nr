@@ -2,6 +2,29 @@ use dep::std;
 use dep::std::hash::poseidon::bn254::perm;
 use dep::std::hash::poseidon;
 
+// NodeTypeParent indicates the type of parent Node that has children.
+global NodeTypeParent  = 0;
+// NodeTypeLeaf indicates the type of a leaf Node that contains a key &
+// value.
+global NodeTypeLeaf = 1;
+// NodeTypeEmpty indicates the type of an empty Node.
+global NodeTypeEmpty  = 2;
+
+// DBEntryTypeRoot indicates the type of a DB entry that indicates the
+// current Root of a MerkleTree
+global DBEntryTypeRoot  = 3;
+
+global NodeTypeLeaf_New   = 4;
+global NodeTypeEmpty_New  = 5;
+// branch node for both child are terminal nodes
+global NodeTypeBranch_0  = 6;
+// branch node for left child is terminal node and right child is branch
+global NodeTypeBranch_1  = 7;
+// branch node for left child is branch node and right child is terminal
+global NodeTypeBranch_2  = 8;
+// branch node for both child are branch nodes
+global NodeTypeBranch_3  = 9;
+
 //used hash_2 from noirs std as example
 //https://github.com/noir-lang/noir/blob/8a322998ee60875f7abe4dc222f8fdc20cb0ee0a/noir_stdlib/src/hash/poseidon/bn254.nr#L24
 //and from the go-ethereum scroll repo
@@ -15,14 +38,138 @@ pub fn hash_2WithDomain(domain: Field, input: [Field; 2]) -> Field {
     perm::x5_3(state)[0]
 }
 
-pub fn hash_5WithDomain(domain: Field, input: [Field; 5]) -> Field {
-    let mut state = [0; 6];
-    state[0] = domain;
-    for i in 0..input.len() {
-        state[i+1] = input[i];
-    }
-    perm::x5_6(state)[0]
+struct Node {
+    nodeHash: Field,
+    valueHash: Field,
+    NodeKey: Field,
+    Type: Field,
+    ChildL: Field,
+    ChildR: Field,
+    CompressedFlags: u32,
+    ValuePreimage: [u8]
 }
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L203
+// NodeHash computes the hash digest of the node by hashing the content in a
+// specific way for each type of node.  This key is used as the hash of the
+// Merkle tree for each node.
+//func (n *Node) NodeHash() (*zkt.Hash, error) {
+//n = node
+pub fn node_hash(mut n: Node) -> Field {
+	// if n.nodeHash == nil { // Cache the key to avoid repeated hash computations.
+    if (n.nodeHash == 0x0) { // Cache the key to avoid repeated hash computations.
+		// NOTE: We are not using the type to calculate the hash!
+		//switch n.Type {
+        
+        //noir doesnt have switch statements yet. 
+		if ([NodeTypeBranch_0,NodeTypeBranch_1, NodeTypeBranch_2, NodeTypeBranch_3].any(|branchType| branchType == n.Type)) { // H(ChildL || ChildR)
+            n.nodeHash = hash_elems_with_domain(n.Type,n.ChildL, n.ChildR, &[]);
+        } else if (n.Type == NodeTypeLeaf_New) {
+			n.valueHash = handling_elems_and_byte32(n.CompressedFlags, n.ValuePreimage);
+            n.nodeHash = leaf_hash(n.NodeKey, n.valueHash);
+
+        } else if (n.Type == NodeTypeEmpty_New) {
+            n.nodeHash = 0x0;
+        }  else if ([NodeTypeEmpty, NodeTypeLeaf, NodeTypeParent].any(|branchType| branchType == n.Type)) { 
+            assert(false,"encounter deprecated node types");
+            //TODO cleanup
+        } else {
+            //n.nodeHash = &zkt.HashZero
+            n.nodeHash = 0x0; //TODO make sure this is true
+            // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/hash.go#L50
+        }
+    }
+	n.nodeHash
+}
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L48
+// HandlingElemsAndByte32 hash an arry mixed with field and byte32 elements, turn each byte32 into
+// field elements first then calculate the hash with HashElems
+pub fn handling_elems_and_byte32(flagArray: u32, elems: [u8]) -> Field {
+    assert(false,"not implemented");
+    0x0
+}
+// func HandlingElemsAndByte32(flagArray uint32, elems []Byte32) (*Hash, error) {
+
+// 	ret := make([]*big.Int, len(elems))
+// 	var err error
+
+// 	for i, elem := range elems {
+// 		if flagArray&(1<<i) != 0 {
+// 			ret[i], err = elem.Hash()
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 		} else {
+// 			ret[i] = new(big.Int).SetBytes(elem[:])
+// 		}
+// 	}
+
+// 	if len(ret) < 2 {
+// 		return NewHashFromBigInt(ret[0]), nil
+// 	}
+
+// 	return HashElems(ret[0], ret[1], ret[2:]...)
+
+// }
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L10
+// HashElemsWithDomain performs a recursive poseidon hash over the array of ElemBytes, each hash
+// reduce 2 fieds into one, with a specified domain field which would be used in
+// every recursiving call
+pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field, elems: [Field]) -> Field {
+    assert(false,"not implemented");
+    0x0
+}
+// func HashElemsWithDomain(domain, fst, snd *big.Int, elems ...*big.Int) (*Hash, error) {
+
+// 	l := len(elems)
+// 	baseH, err := hashScheme([]*big.Int{fst, snd}, domain)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if l == 0 {
+// 		return NewHashFromBigInt(baseH), nil
+// 	} else if l == 1 {
+// 		return HashElemsWithDomain(domain, baseH, elems[0])
+// 	}
+
+// 	tmp := make([]*big.Int, (l+1)/2)
+// 	for i := range tmp {
+// 		if (i+1)*2 > l {
+// 			tmp[i] = elems[i*2]
+// 		} else {
+// 			h, err := hashScheme(elems[i*2:(i+1)*2], domain)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			tmp[i] = h
+// 		}
+// 	}
+
+// 	return HashElemsWithDomain(domain, baseH, tmp[0], tmp[1:]...)
+// }
+
+
+
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L179
+// LeafHash computes the key of a leaf node given the hIndex and hValue of the
+// entry of the leaf.
+// func LeafHash(k, v *zkt.Hash) (*zkt.Hash, error) {
+// 	return zkt.HashElemsWithDomain(big.NewInt(int64(NodeTypeLeaf_New)), k.BigInt(), v.BigInt())
+// }
+pub fn leaf_hash(key: Field, valueHash: Field) -> Field {
+	hash_elems_with_domain(NodeTypeLeaf_New, key, valueHash, &[])
+}
+
+// NewHashFromBigInt returns a *Hash representation of the given *big.Int
+// basically converts int to reverse byte order
+// func NewHashFromBigInt(b *big.Int) *Hash {
+// 	r := &Hash{}
+// 	copy(r[:], ReverseByteOrder(b.Bytes()))
+// 	return r
+// }
 
 #[test]
 fn test_main() {
@@ -50,73 +197,10 @@ fn test_main() {
     //identifier of the storage value and contains the key and slot of the mapping 
     let storageKey = 0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff;
 
-    //---------storageKeyPoseidon-------------
-    let storageKeyPoseidon = hash_2WithDomain(
-        512,
-        [
-        hash_2WithDomain(
-            256,
-            [0x0000000000000000000000004402c128, 0xc2337d7a6c4c867be68f7714a4e06429]
-        ),
-        hash_2WithDomain(
-            256,
-            [0x00000000000000000000000000000000, 0x00000000000000000000000000000000]
-        )
-    ]
-    );
-    println("storageKeyPoseidon");
-    println(storageKeyPoseidon);
-    //-----------------
-    let storageKeyPoseidonNoWhackySplits = hash_2WithDomain(512, storageKeyPreImageArr);
-    println("storageKeyPoseidonNoWhackySplits");
-    println(storageKeyPoseidonNoWhackySplits);
-
     //root of storage proof, used in account proof to walk the merkle path to blockheader
     let storageHash = 0x0d5ae1b455fb8efc1be9a7f90e3b312ecaf3ff46930a6f2e0c3ecfb04cb950cd;
 
-    //--------------nodeKey --------------------------------
-    //nodeKey := h{256}(storageKey[0:16], storageKey[16:32])
-
-    //storageKeySplit padded value
-    //leading zeros wont make a difference
-
-    //"0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff".slice(2).match(/.{1,32}/g).map((x) => ethers.zeroPadBytes("0x" + x, 32)).toString()
-    let storageKeySplitPadded = [
-        0xdd4d389a3e50efed8ae09dd0fdc3adaf00000000000000000000000000000000, 0x1beae58fd2204e19758755085d876cff00000000000000000000000000000000
-    ];
-    let mut nodeKey = hash_2WithDomain(256, storageKeySplitPadded);
-    println("storageKeySplitPadded");
-    println(nodeKey);
-
-    //--------------valueHash --------------------------------
-    //valueHash = h{512}(storageValue[0:16], storageValue[16:32])
-
-    //ethers.zeroPadBytes("0x05390c89de0c208457",32).slice(2).match(/.{1,32}/g).map((x) => "0x" + x, 32).toString()
-    let valueSplitPadded = [0x05390c89de0c20845700000000000000, 0x00000000000000000000000000000000];
-    println("valueSplitPadded");
-    let mut valueHash = hash_2WithDomain(512, valueSplitPadded);
-    println(valueHash);
-
-    //ethers.zeroPadBytes("0x05390c89de0c208457",32).slice(2).match(/.{1,32}/g).map((x) => ethers.zeroPadBytes("0x" + x, 32)).toString()
-    let valueSplitDoublePadded = [
-        0x05390c89de0c2084570000000000000000000000000000000000000000000000, 0x0000000000000000000000000000000000000000000000000000000000000000
-    ];
-    println("valueSplitDoublePadded");
-    let mut valueHash = hash_2WithDomain(512, valueSplitDoublePadded);
-    println(valueHash);
-
-    //leafNodeProofDeconstructed
-    // 0x04
-    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a
-    // 01010000
-    // 00000000000000000000000000000000000000000000000000900661d8af4c86
-    // 20
-    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
-
-    //node hash
-    //let leafNodeProof = "0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a01010000000000000000000000000000000000000000000000000005390c89de0c20845720dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff"
-    //"0x" + leafNodeProof.slice(4).slice(0,64)
-
+    // account leaf deconstructed
     // leaf node        = node key , value len , compress flag , <value len> * value field, key preimage ;
     // 0x04 //prefix leafnode
     // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // nodekey as field
@@ -150,35 +234,68 @@ fn test_main() {
             
     //leafNodeProofDeconstructed
     // 0x04
-    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a
+    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key or sybling??
     // 01010000
-    // 00000000000000000000000000000000000000000000000000900661d8af4c86
-    // 20
-    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
+    // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value
+    // 20                                                               // no clue?? = 32 decimal,  32 bytes???, 256 bits//
+    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key
+
+    //We encode the path of a new leaf node by traversing the secure key from Least Significant Bit (LSB) to the Most Significant Bit (MSB). At each step, if the bit is 0, we will traverse to the left child; otherwise, traverse to the right child.
+    // start at end, 0 = left
+
 
     //--------------nodeKey-----------------------
+    //https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L149
     //nodeKey := h{256}(storageKey[0:16], storageKey[16:32])
     //no padding
-    let storageKeySplit = [0xdd4d389a3e50efed8ae09dd0fdc3adaf, 0x1beae58fd2204e19758755085d876cff];
-    nodeKey = hash_2WithDomain(256, storageKeySplit);
+    let mut storageKeySplit = [0xdd4d389a3e50efed8ae09dd0fdc3adaf, 0x1beae58fd2204e19758755085d876cff];
+    //ethers.hexlify(ethers.toBeArray("0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff").reverse()).slice(2).match(/.{1,32}/g).map((x)=>"0x"+x)
+    //storageKeySplit = [0xff6c875d08558775194e20d28fe5ea1b,0xafadc3fdd09de08aedef503e9a384ddd];
+    let mut nodeKey = hash_2WithDomain(256, storageKeySplit);
     println("nodeKey: storageKeyPreImageArr");
     println(nodeKey);
 
-    nodeKey = hash_2WithDomain(256,[0x108e2f19fe8f4794f6bf4f3f21fbc2d6, 0x330e6043e97a4c660d9618c7c3958e0a]);
-
     //--------------valueHash-----------------------
+    //valueHash = h{512}(storageValue[0:16], storageValue[16:32])
     //no padding
-    let valueSplit = [0x00000000000000000000000000000000, 0x000000000000000000900661d8af4c86];
+    let mut valueSplit = [0x00000000000000000000000000000000, 0x000000000000000000900661d8af4c86];
+    //ethers.zeroPadValue("0x900661d8af4c86",32).slice(2).match(/.{1,2}/g).reverse().join("").match(/.{1,32}/g).map((x)=>"0x"+x).toString()
+    //valueSplit = [0x864cafd8610690000000000000000000,0x00000000000000000000000000000000];
     println("valueSplit");
-    valueHash = hash_2WithDomain(512, valueSplit);
+    let mut valueHash = hash_2WithDomain(0x50, valueSplit);
     println(valueHash);
 
     //----------leafNodeHash-------------
     //leafNodeHash = h{LeafNodeType}(nodeKey, valueHash)
-    let leafNodeType = 0x04;
-    let mut leafNodeHash = hash_2WithDomain(0x04, [nodeKey, valueHash]);
+
+    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L19
+    // // NodeTypeLeaf indicates the type of a leaf Node that contains a key &
+	// // value.
+	// NodeTypeLeaf NodeType = 1
+    let leafNodeType = 0x01;
+    let mut leafNodeHash = hash_2WithDomain(leafNodeType, [nodeKey, valueHash]);
     println("leafNodeHash");
     println(leafNodeHash);
+
+    let nodeType = 0x04;
+    let leafSybling = 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a;
+    let mut leafNodeWithSyblingHash = hash_2WithDomain(nodeType, [leafNodeHash, leafSybling]);
+    println("leafNodeWithSyblingHash Left");
+    println(leafNodeWithSyblingHash);
+    // leafNodeWithSyblingHash = hash_2WithDomain(nodeType, [leafSybling, leafNodeHash]);
+    // println("leafNodeWithSyblingHash Right");
+    // println(leafNodeWithSyblingHash);
+
+    // 0x06
+    // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
+    // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+
+
+
+
+    //////------------------------poseidon storage key
+
+
 
 
 }
