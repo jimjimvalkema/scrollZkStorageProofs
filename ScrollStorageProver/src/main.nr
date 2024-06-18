@@ -116,25 +116,20 @@ pub fn node_hash(mut n: Node) -> Field {
 pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
 	//ret := make([]*big.Int, len(elems))
     let mut ret: [Field] = &[];
-    let mut firstEl = 0;
-    let mut elem31byte: [u8; 31] = [0; 31];
 	for i in 0 .. elems.len() {
 		if ((flagArray as u8) & 1<< (i as u8) != 0) {
-            // elem.Hash() is just hash_2WithDomain with elem split up in 15 bytes
+            // elem.Hash() is just hash_2WithDomain with elem split up in 16 bytes
             // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
             // TODO check if we can split with bn254 decompose without losing data
-            let (firstHalfBytes, lastHalfBytes) = split_byte32_to_byte31(elems[i]);
-            let firstHalfField = be_bytes31_to_fied(firstHalfBytes);
-            let lastHalfField = be_bytes31_to_fied(lastHalfBytes);
-			ret = ret.push_back(hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[firstHalfField, lastHalfField]));
+            let (firstHalf, lastHalf) = split_byte32_to_fields(elems[i]);
+			ret = ret.push_back(hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[firstHalf, lastHalf]));
 		} else {
 			// ret[i] = new(big.Int).SetBytes(elem[:])
             // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
             // TODO research https://pkg.go.dev/math/big#Int.SetBytes
             
             //silly ah way to do elems[i][1:]
-            elem31byte = elems[i].as_slice().pop_front().1.as_array();
-            ret = ret.push_back(be_bytes31_to_fied(elem31byte));
+            ret = ret.push_back(be_bytes32_to_fied(elems[i]));
 		}
 	}
 
@@ -150,13 +145,53 @@ pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
 	hash_elems(retFirstEl, retSecondEl, ret)
 }
 
-pub fn split_byte32_to_byte31(el: [u8;32]) -> ([u8;31], [u8;31]) {
-    let mut firstHalf: [u8;31] = [0;31];
-    let mut lastHalf:  [u8;31] = [0;31];
-    let splitPoint = 16;
-    for i in 0 .. splitPoint {
+//splits into 2 byte16 arrays with padded zero at start
+pub fn split_byte32(el: [u8;32]) -> ([u8;16], [u8;16]) {
+    println("splitting!!!!!!!!!!!!!!");
+    let mut firstHalf: [u8;16] = [0;16];
+    let mut lastHalf:  [u8;16] = [0;16];
+    for i in 0..16 {
         firstHalf[i] = el[i];
-        lastHalf[i] = el[splitPoint+i];
+        lastHalf[i] = el[16+i];
+    }
+    (firstHalf, lastHalf)
+}
+
+pub fn split_byte32_to_fields(bytes: [u8;32]) -> (Field, Field) {
+    println("splitting!!!!!!!!!!!!!!");
+    let mut firstHalf: Field = 0x0;
+    let mut lastHalf: Field = 0x0;
+
+    let mut offset = 1;
+    for i in 1..17 {
+        firstHalf = firstHalf.add((bytes[16-i] as Field).mul(offset));
+        lastHalf = lastHalf.add((bytes[32-i] as Field).mul(offset));
+        offset *= 256;
+    }
+    (firstHalf, lastHalf)
+}
+
+fn be_bytes16_to_fied(bytes: [u8; 16]) -> Field {
+    let mut res: Field = 0;
+    let mut offset = 1;
+    let b_len = bytes.len();
+    // TODO check if this is faster done inside the for
+    let itter_len = b_len+1;
+    //cant reverse itter in noir so we do a silly
+    for i in 1..itter_len {
+        res = res.add((bytes[b_len-i] as Field).mul(offset));
+        offset *= 256;
+    }
+    res
+}
+
+//splits into 2 byte32 arrays with padded zero at start
+pub fn split_byte32_to_bytes32(el: [u8;32]) -> ([u8;32], [u8;32]) {
+    let mut firstHalf: [u8;32] = [0;32];
+    let mut lastHalf:  [u8;32] = [0;32];
+    for i in 16..32 {
+        firstHalf[i] = el[i-16];
+        lastHalf[i] = el[i];
     }
     (firstHalf, lastHalf)
 }
@@ -175,8 +210,6 @@ pub fn hash_elems(firstEl: Field, secondEl: Field, elems: [Field]) -> Field {
 pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field, elems: [Field]) -> Field {
 	let l = elems.len();
 	let mut baseH: Field = hash_2WithDomain(domain, [firstElem, secondElem]);
-    println("llllllllllllllllllllllllllllllllllllll");
-    println(l);
     if l == 1 {
 		baseH  = hash_elems_with_domain(domain, baseH, elems[0], &[]);
 	} else if l != 0 {
@@ -240,6 +273,22 @@ fn be_bytes31_to_fied(bytes: [u8; 31]) -> Field {
     let itter_len = b_len+1;
     //cant reverse itter in noir so we do a silly
     for i in 1..itter_len {
+        res = res.add((bytes[b_len-i] as Field).mul(offset));
+        offset *= 256;
+    }
+    res
+}
+
+// ignores first byte
+fn be_bytes32_to_fied(bytes: [u8; 32]) -> Field {
+    let mut res: Field = 0;
+    let mut offset = 1;
+    let b_len = bytes.len();
+    // TODO check if this is faster done inside the for
+    //cant reverse itter in noir so we do a silly
+
+    // start at 1 to ignore first byte
+    for i in 1..b_len {
         res = res.add((bytes[b_len-i] as Field).mul(offset));
         offset *= 256;
     }
@@ -429,10 +478,12 @@ fn test_main() {
     let possibleNodeHashes = [0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe, 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040];
     let leafHashIsIn:bool = possibleNodeHashes.any(|hash| hash == nodeHashReimplemented);
     let nodeHashIsIn:bool = possibleNodeHashes.any(|hash| hash == leafNodeWithSyblingHash);
-
+    //println(be_bytes32_to_fied([221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]));
     //assert((leafHashIsIn | nodeHashIsIn),  "leafHashIsIn or nodeHashIsIn do not match any of the next hashes from proof");
 
-
+    let (f,l) = split_byte32_to_fields([221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]);
+    println(f);
+    println(l);
     //////------------------------poseidon storage key
 
 
