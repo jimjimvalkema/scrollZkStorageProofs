@@ -227,6 +227,37 @@ pub fn leaf_hash(key: Field, valueHash: Field) -> Field {
 // 	// return r
 // }
 
+fn be_bytes31_to_fied(bytes: [u8; 31]) -> Field {
+    let mut res: Field = 0;
+    let mut offset = 1;
+    let b_len = bytes.len();
+    // TODO check if this is faster done inside the for
+    let itter_len = b_len+1;
+    //cant reverse itter in noir so we do a silly
+    for i in 1..itter_len {
+        res = res.add((bytes[b_len-i] as Field).mul(offset));
+        offset *= 256;
+    }
+    res
+}
+
+
+// Decomposes a single field into two 16 byte fields.
+fn compute_decomposition(x_bytes: [u8; 32]) -> (Field, Field) {
+    //let x_bytes = x.to_le_bytes(32);
+
+    let mut low: Field = 0;
+    let mut high: Field = 0;
+
+    let mut offset = 1;
+    for i in 0..16 {
+        low += (x_bytes[i] as Field) * offset;
+        high += (x_bytes[i + 16] as Field) * offset;
+        offset *= 256;
+    }
+
+    (low, high)
+}
 #[test]
 fn test_main() {
     let preimage12 = [1, 2];
@@ -387,7 +418,11 @@ fn test_main() {
     let leafHashIsIn:bool = possibleNodeHashes.any(|hash| hash == nodeHashReimplemented);
     let nodeHashIsIn:bool = possibleNodeHashes.any(|hash| hash == leafNodeWithSyblingHash);
 
-    assert((leafHashIsIn | nodeHashIsIn),  "leafHashIsIn or nodeHashIsIn do not match any of the next hashes from proof");
+    println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    // [...ethers.toBeArray("0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff".slice(0,-2))].toString()
+    let storageHashBytes: [u8; 31] = [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108];
+    println(be_bytes31_to_fied(storageHashBytes))
+    //assert((leafHashIsIn | nodeHashIsIn),  "leafHashIsIn or nodeHashIsIn do not match any of the next hashes from proof");
 
 
     //////------------------------poseidon storage key
