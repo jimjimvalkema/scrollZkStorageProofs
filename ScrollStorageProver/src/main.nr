@@ -116,20 +116,25 @@ pub fn node_hash(mut n: Node) -> Field {
 pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
 	//ret := make([]*big.Int, len(elems))
     let mut ret: [Field] = &[];
+    let mut firstEl = 0;
+    let mut elem31byte: [u8; 31] = [0; 31];
 	for i in 0 .. elems.len() {
 		if ((flagArray as u8) & 1<< (i as u8) != 0) {
             // elem.Hash() is just hash_2WithDomain with elem split up in 15 bytes
             // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
             // TODO check if we can split with bn254 decompose without losing data
-            let (firstHalfBytes, lastHalfBytes) = split_byte_arr(elems[i]);
-            let firstHalfField = bytes32_to_field(firstHalfBytes);
-            let lastHalfField = bytes32_to_field(lastHalfBytes);
+            let (firstHalfBytes, lastHalfBytes) = split_byte32_to_byte31(elems[i]);
+            let firstHalfField = be_bytes31_to_fied(firstHalfBytes);
+            let lastHalfField = be_bytes31_to_fied(lastHalfBytes);
 			ret = ret.push_back(hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[firstHalfField, lastHalfField]));
 		} else {
 			// ret[i] = new(big.Int).SetBytes(elem[:])
             // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
             // TODO research https://pkg.go.dev/math/big#Int.SetBytes
-            ret = ret.push_back(bytes32_to_field(elems[i]));
+            
+            //silly ah way to do elems[i][1:]
+            elem31byte = elems[i].as_slice().pop_front().1.as_array();
+            ret = ret.push_back(be_bytes31_to_fied(elem31byte));
 		}
 	}
 
@@ -145,9 +150,9 @@ pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
 	hash_elems(retFirstEl, retSecondEl, ret)
 }
 
-pub fn split_byte_arr(el: [u8;32]) -> ([u8;32], [u8;32]) {
-    let mut firstHalf: [u8;32] = [0;32];
-    let mut lastHalf:  [u8;32] = [0;32];
+pub fn split_byte32_to_byte31(el: [u8;32]) -> ([u8;31], [u8;31]) {
+    let mut firstHalf: [u8;31] = [0;31];
+    let mut lastHalf:  [u8;31] = [0;31];
     let splitPoint = 16;
     for i in 0 .. splitPoint {
         firstHalf[i] = el[i];
@@ -379,15 +384,22 @@ fn test_main() {
         ChildR: 0x0,              // *zkt.Hash
 
         // NodeKey is the node's key stored in a leaf node.
-        NodeKey: 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a,             // *zkt.Hash
+        NodeKey: nodeKey,             // *zkt.Hash
 
         // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
         // and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
         // elemments would be calculated first
         ValuePreimage: [
-            0x00000000000000000000000000000000000000000000000000900661d8af4c86.to_be_bytes(32).as_array(),
-            0x20.to_be_bytes(32).as_array(),
-            0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()
+            // a = [...ethers.toBeArray("0x00000000000000000000000000000000000000000000000000900661d8af4c86")]
+            // zeros = Array(32-a.length).fill(0);
+            // [...zeros, ...a].toString()    
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134],
+            // a = [...ethers.toBeArray("0x20")]
+            // zeros = Array(32-a.length).fill(0);
+            // [...zeros, ...a].toString()  
+            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32],
+            // [...ethers.toBeArray("0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff")].toString()
+            [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255],
         ],
 
         // CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
@@ -418,10 +430,6 @@ fn test_main() {
     let leafHashIsIn:bool = possibleNodeHashes.any(|hash| hash == nodeHashReimplemented);
     let nodeHashIsIn:bool = possibleNodeHashes.any(|hash| hash == leafNodeWithSyblingHash);
 
-    println("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
-    // [...ethers.toBeArray("0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff".slice(0,-2))].toString()
-    let storageHashBytes: [u8; 31] = [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108];
-    println(be_bytes31_to_fied(storageHashBytes))
     //assert((leafHashIsIn | nodeHashIsIn),  "leafHashIsIn or nodeHashIsIn do not match any of the next hashes from proof");
 
 
