@@ -440,16 +440,23 @@ fn compute_decomposition(x_bytes: [u8; 32]) -> (Field, Field) {
 //     // println(leafNodeWithSyblingHash);
 
 //     //leafNodeProofDeconstructed
-//     // 0x04
-//     // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key or sybling??
-//     // 01010000
-//     // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value
-//     // 20                                                               // no clue?? = 32 decimal,  32 bytes???, 256 bits//
-//     // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key
+//     // 0x04                                                                                          1  byte
+//     // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key                  32 byte            
+//     // 01010000                                                         // compressed flag array     4  bytes long
+//     // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value                     32 byte   
+//     // 20                                                               // preImageSize = 32 bit     1  byte   
+//     // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
 
 // }
 
 fn test_storage_leaf_hash() {
+        // node key preImage Hashing. NodeKeyPreImage = storageProof.key
+        //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
+        let (firstHalf, lastHalf) = split_byte32_to_fields([221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]);
+        let nodeKey = hash_2WithDomain(512, [firstHalf, lastHalf]);
+        println(nodeKey);
+        println("nodeKey from PreImage:");
+
         let mut node:Node = Node {
         // Type is the type of node in the tree.
         Type: 0x04,                // NodeType u8 //type NodeType byte
@@ -461,7 +468,7 @@ fn test_storage_leaf_hash() {
 
         // NodeKey is the node's key stored in a leaf node.
         // 0x0a8e95c3c718960d664c7ae943600e33d6c2fb213f4fbff694478ffe192f8e10
-        NodeKey: 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a,//[10,142,149,195,199,24,150,13,102,76,122,233,67,96,14,51,214,194,251,33,63,79,191,246,148,71,143,254,25,47,142,16],             // *zkt.Hash
+        NodeKey: nodeKey,//[10,142,149,195,199,24,150,13,102,76,122,233,67,96,14,51,214,194,251,33,63,79,191,246,148,71,143,254,25,47,142,16],             // *zkt.Hash
 
         // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
         // and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
@@ -482,26 +489,14 @@ fn test_storage_leaf_hash() {
         KeyPreimage: [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]    //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()          // *zkt.Byte32
     };
 
-    let nodeHashReimplemented = node_hash(node);
-    println("nodeHashReimplemented");
-    println(nodeHashReimplemented);
+    let nodeHash = node_hash(node);
+    println("nodeHash");
+    println(nodeHash);
 
-
-    // one level up from leaf
-    // 0x06
-    // 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
-    // 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+    // check if nodeHash matches any of the nodehashes next in the proof
     let possibleNodeHashes = [0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe, 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040];
-    let leafHashIsIn:bool = possibleNodeHashes.any(|hash| hash == nodeHashReimplemented);
-   // let nodeHashIsIn:bool = possibleNodeHashes.any(|hash| hash == leafNodeWithSyblingHash);
-    //println(be_bytes32_to_fied([221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]));
-    assert((leafHashIsIn),  "leafHashIsIn or nodeHashIsIn do not match any of the next hashes from proof");
-
-    // let (f,l) = split_byte32_to_fields([221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]);
-    // println(f);
-    // println(l);
-    //////------------------------poseidon storage key
-
+    let nodeHashIsCorrect:bool = possibleNodeHashes.any(|hash| hash == nodeHash);
+    assert(nodeHashIsCorrect,  "leafHashIsIn do not match any of the next hashes from proof");
 
 }
 

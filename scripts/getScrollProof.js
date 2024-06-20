@@ -140,7 +140,9 @@ export function  NewNodeFromBytes(b) {
             }
             n.NodeKey = zkt.NewHashFromBytes(b.slice(0,zkt.HashByteLen));
             const mark = ethers.toBigInt(b.slice(zkt.HashByteLen , zkt.HashByteLen+4).reverse())
+            console.log(ethers.hexlify(b.slice(zkt.HashByteLen , zkt.HashByteLen+4)))
             const preimageLen = mark & 255n
+            console.log({preimageLen, mark})
             n.CompressedFlags = mark >> 8n
             n.ValuePreimage = Array(preimageLen).fill(new Uint8Array(Array(32).fill(0)))//make([]zkt.Byte32, preimageLen)
             let curPos = BigInt(zkt.HashByteLen) + 4n
@@ -193,7 +195,7 @@ export function DecodeSMTProof(bytes) {
 		return 0
 	}
 
-	return NewNodeFromBytes(data)
+	return NewNodeFromBytes(bytes)
 }
 
 
