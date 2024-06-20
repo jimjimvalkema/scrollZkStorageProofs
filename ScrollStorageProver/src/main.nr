@@ -118,17 +118,12 @@ pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
     let mut ret: [Field] = &[];
 	for i in 0 .. elems.len() {
 		if ((flagArray as u8) & 1<< (i as u8) != 0) {
-            println("flagged");
-            println(elems[i]);
-
             // elem.Hash() is just hash_2WithDomain with elem split up in 16 bytes
             // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
             // TODO check if we can split with bn254 decompose without losing data
             let (firstHalf, lastHalf) = split_byte32_to_fields(elems[i]);
 			ret = ret.push_back(hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[firstHalf, lastHalf]));
 		} else {
-            println("not flagged");
-            println(elems[i]);
 			// ret[i] = new(big.Int).SetBytes(elem[:])
             // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
             // TODO research https://pkg.go.dev/math/big#Int.SetBytes
@@ -158,7 +153,6 @@ pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
 
 //splits into 2 byte16 arrays with padded zero at start
 pub fn split_byte32(el: [u8;32]) -> ([u8;16], [u8;16]) {
-    println("splitting!!!!!!!!!!!!!!");
     let mut firstHalf: [u8;16] = [0;16];
     let mut lastHalf:  [u8;16] = [0;16];
     for i in 0..16 {
@@ -169,7 +163,6 @@ pub fn split_byte32(el: [u8;32]) -> ([u8;16], [u8;16]) {
 }
 
 pub fn split_byte32_to_fields(bytes: [u8;32]) -> (Field, Field) {
-    println("splitting!!!!!!!!!!!!!!");
     let mut firstHalf: Field = 0x0;
     let mut lastHalf: Field = 0x0;
 
@@ -219,17 +212,6 @@ pub fn hash_elems(firstEl: Field, secondEl: Field, elems: [Field]) -> Field {
 // reduce 2 fieds into one, with a specified domain field which would be used in
 // every recursiving call
 pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field, elems: [Field]) -> Field {
-	println("domain, firstElem, secondElem, elems");
-    println(domain);
-    // println(firstElem);
-    // println(secondElem);
-    // // if (elems.len() < 0) {
-    // //     println(elems);
-    // // } else {
-    // //     println("[]")
-    // // }
-
-    
     let l = elems.len();
 	let mut baseH: Field = hash_2WithDomain(domain, [firstElem, secondElem]);
     if l == 1 {
@@ -439,64 +421,49 @@ fn compute_decomposition(x_bytes: [u8; 32]) -> (Field, Field) {
 //     // println("leafNodeWithSyblingHash Right");
 //     // println(leafNodeWithSyblingHash);
 
-//     //leafNodeProofDeconstructed
-//     // 0x04                                                                                          1  byte
-//     // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key                  32 byte            
-//     // 01010000                                                         // compressed flag array     4  bytes long
-//     // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value                     32 byte   
-//     // 20                                                               // preImageSize = 32 bit     1  byte   
-//     // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
+    // leafNodeProofDeconstructed
+    // 0x04                                                                                          1  byte
+    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key                  32 byte            
+    // 01010000                                                         // compressed flag array     4  bytes long
+    // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value                     32 byte   
+    // 20                                                               // preImageSize = 32 bit     1  byte   
+    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
 
 // }
 
-fn test_storage_leaf_hash() {
-        // node key preImage Hashing. NodeKeyPreImage = storageProof.key
-        //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
-        let (firstHalf, lastHalf) = split_byte32_to_fields([221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]);
-        let nodeKey = hash_2WithDomain(512, [firstHalf, lastHalf]);
-        println(nodeKey);
-        println("nodeKey from PreImage:");
+fn test_storage_leaf_hash() {    
+    // leaf as in proof
+    // 0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
+    
+    //leafNodeProofDeconstructed
+    // 0x04                                                             // leafNode type             1  byte
+    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key                  32 byte            
+    // 01010000                                                         // compressed flag array     4  bytes long
+    // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value                     32 byte   
+    // 20                                                               // preImageSize = 32 bit     1  byte   
+    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
 
-        let mut node:Node = Node {
-        // Type is the type of node in the tree.
-        Type: 0x04,                // NodeType u8 //type NodeType byte
 
-        // ChildL is the node hash of the left child of a parent node.
-        ChildL: 0x0,              // *zkt.Hash
-        // NodeKey is the node's key stored in a leaf node.
-        ChildR: 0x0,              // *zkt.Hash
+    //---------decoded-inputs----------------------------------------
+    // node key preImage Hashing. NodeKeyPreImage = storageProof.key
+    //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
+    let leafNodeType:Field = 0x04;
+    let storageKeyBytes:[u8;32] = [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255];
+    let valuePreimageBytes: [[u8;32]] = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134]];
+    //---------------------------------------------------------------
+    
+    //NodeKey
+    let (storageKeyFstHlf, storageKeyLstHlf) = split_byte32_to_fields(storageKeyBytes);
+    let nodeKey = hash_2WithDomain(512, [storageKeyFstHlf, storageKeyLstHlf]);
 
-        // NodeKey is the node's key stored in a leaf node.
-        // 0x0a8e95c3c718960d664c7ae943600e33d6c2fb213f4fbff694478ffe192f8e10
-        NodeKey: nodeKey,//[10,142,149,195,199,24,150,13,102,76,122,233,67,96,14,51,214,194,251,33,63,79,191,246,148,71,143,254,25,47,142,16],             // *zkt.Hash
+    //Value Hash
+    let (valuePreImgFst, valuePreImgLst) = split_byte32_to_fields(valuePreimageBytes[0]);
+    let valueHash = hash_2WithDomain(512, [valuePreImgFst, valuePreImgLst]);
+    
+    //NodeHash
+    let nodeHash = hash_2WithDomain(leafNodeType,[nodeKey, valueHash]);
 
-        // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
-        // and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
-        // elemments would be calculated first
-        // [0x00000000000000000000000000000000000000000000000000900661d8af4c86]
-        ValuePreimage: [
-            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134]
-        ],
-
-        // CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
-        CompressedFlags: 1,       // uint32 //01010000
-        // nodeHash is the cache of the hash of the node to avoid recalculating
-        nodeHash: 0x0,            // *zkt.Hash
-        // valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
-        valueHash: 0x0,           // *zkt.Hash
-        // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
-        // 0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
-        KeyPreimage: [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255]    //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff.to_be_bytes(32).as_array()          // *zkt.Byte32
-    };
-
-    let nodeHash = node_hash(node);
-    println("nodeHash");
-    println(nodeHash);
-
-    // check if nodeHash matches any of the nodehashes next in the proof
-    let possibleNodeHashes = [0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe, 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040];
-    let nodeHashIsCorrect:bool = possibleNodeHashes.any(|hash| hash == nodeHash);
-    assert(nodeHashIsCorrect,  "leafHashIsIn do not match any of the next hashes from proof");
+    assert(nodeHash == 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe,  "node_hash doesnt match");
 
 }
 
