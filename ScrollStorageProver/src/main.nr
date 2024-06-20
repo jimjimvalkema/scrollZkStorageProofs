@@ -38,7 +38,7 @@ global HASH_DOMAIN_BYTE32:Field     = 2 * HASH_DOMAIN_ELEMS_BASE;
 //https://github.com/noir-lang/noir/blob/8a322998ee60875f7abe4dc222f8fdc20cb0ee0a/noir_stdlib/src/hash/poseidon/bn254.nr#L24
 //and from the go-ethereum scroll repo
 //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon.go#L157
-pub fn hash_2WithDomain(domain: Field, input: [Field; 2]) -> Field {
+pub fn hash_2_with_domain(domain: Field, input: [Field; 2]) -> Field {
     let mut state = [0; 3];
     state[0] = domain;
     for i in 0..input.len() {
@@ -70,8 +70,8 @@ struct Node {
     CompressedFlags: u32,       // uint32
     // nodeHash is the cache of the hash of the node to avoid recalculating
     nodeHash: Field,            // *zkt.Hash
-    // valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
-    valueHash: Field,           // *zkt.Hash
+    // value_hash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
+    value_hash: Field,           // *zkt.Hash
     // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
     KeyPreimage: [u8;32]          // *zkt.Byte32
 }
@@ -82,7 +82,7 @@ struct Node {
 // Merkle tree for each node.
 //func (n *Node) NodeHash() (*zkt.Hash, error) {
 //n = node
-pub fn node_hash(mut n: Node) -> Field {
+pub fn compute_node_hash(mut n: Node) -> Field {
 	// if n.nodeHash == nil { // Cache the key to avoid repeated hash computations.
     if (n.nodeHash == 0x0) { // Cache the key to avoid repeated hash computations.
 		// NOTE: We are not using the type to calculate the hash!
@@ -92,8 +92,8 @@ pub fn node_hash(mut n: Node) -> Field {
 		if ([NodeTypeBranch_0,NodeTypeBranch_1, NodeTypeBranch_2, NodeTypeBranch_3].any(|branchType| branchType == n.Type)) { // H(ChildL || ChildR)
             n.nodeHash = hash_elems_with_domain(n.Type,n.ChildL, n.ChildR, &[]);
         } else if (n.Type == NodeTypeLeaf_New) {
-			n.valueHash = handling_elems_and_byte32(n.CompressedFlags, n.ValuePreimage);
-            n.nodeHash = leaf_hash(n.NodeKey, n.valueHash);
+			n.value_hash = handling_elems_and_byte32(n.CompressedFlags, n.ValuePreimage);
+            n.nodeHash = leaf_hash(n.NodeKey, n.value_hash);
 
         } else if (n.Type == NodeTypeEmpty_New) {
             n.nodeHash = 0x0;
@@ -118,11 +118,11 @@ pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
     let mut ret: [Field] = &[];
 	for i in 0 .. elems.len() {
 		if ((flagArray as u8) & 1<< (i as u8) != 0) {
-            // elem.Hash() is just hash_2WithDomain with elem split up in 16 bytes
+            // elem.Hash() is just hash_2_with_domain with elem split up in 16 bytes
             // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
             // TODO check if we can split with bn254 decompose without losing data
             let (firstHalf, lastHalf) = split_byte32_to_fields(elems[i]);
-			ret = ret.push_back(hash_2WithDomain(HASH_DOMAIN_BYTE32 as Field,[firstHalf, lastHalf]));
+			ret = ret.push_back(hash_2_with_domain(HASH_DOMAIN_BYTE32 as Field,[firstHalf, lastHalf]));
 		} else {
 			// ret[i] = new(big.Int).SetBytes(elem[:])
             // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
@@ -213,7 +213,7 @@ pub fn hash_elems(firstEl: Field, secondEl: Field, elems: [Field]) -> Field {
 // every recursiving call
 pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field, elems: [Field]) -> Field {
     let l = elems.len();
-	let mut baseH: Field = hash_2WithDomain(domain, [firstElem, secondElem]);
+	let mut baseH: Field = hash_2_with_domain(domain, [firstElem, secondElem]);
     if l == 1 {
 		baseH  = hash_elems_with_domain(domain, baseH, elems[0], &[]);
 	} else if l != 0 {
@@ -226,7 +226,7 @@ pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field
         //     if (i+1)*2 > l {
         //         tmp = tmp.push_back(elems[i*2]);
         //     } else {
-        //         tmp = tmp.push_back(hash_2WithDomain(domain, [elems[i*2] , elems[(i+1)*2]] ));
+        //         tmp = tmp.push_back(hash_2_with_domain(domain, [elems[i*2] , elems[(i+1)*2]] ));
         //     }
         // }
         // //TODO research if can be done without popping
@@ -254,8 +254,8 @@ pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field
 // func LeafHash(k, v *zkt.Hash) (*zkt.Hash, error) {
 // 	return zkt.HashElemsWithDomain(big.NewInt(int64(NodeTypeLeaf_New)), k.BigInt(), v.BigInt())
 // }
-pub fn leaf_hash(key: Field, valueHash: Field) -> Field {
-	hash_elems_with_domain(NodeTypeLeaf_New, key, valueHash, &[])
+pub fn leaf_hash(key: Field, value_hash: Field) -> Field {
+	hash_elems_with_domain(NodeTypeLeaf_New, key, value_hash, &[])
 }
 
 // NewHashFromBigInt returns a *Hash representation of the given *big.Int
@@ -319,118 +319,24 @@ fn compute_decomposition(x_bytes: [u8; 32]) -> (Field, Field) {
 
 
 #[test]
-// fn test_main() {
-//     let preimage12 = [1, 2];
-//     let hashFixed2 = poseidon::bn254::hash_2(preimage12);
-//     assert(hashFixed2 == 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a);
-//     //matches  HashFixed([]*big.Int{1, 2})
-//     //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L41
+fn test_poseidon_2() {
+    let preimage12 = [1, 2];
+    let hashFixed2 = poseidon::bn254::hash_2(preimage12);
+    assert(hashFixed2 == 0x115cc0f5e7d690413df64c6b9662e9cf2a3617f2743245519e19607a4417189a);
+    //matches  HashFixed([]*big.Int{1, 2})
+    //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L41  
+}
 
-//     //HashFixedWithDomain([]*big.Int{b1, b2}, big.NewInt(256))
-//     //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L99
-//     let mut hashFixedDomain = hash_2WithDomain(256, preimage12);
-//     assert(hashFixedDomain == 0x05390df727dcce2ddb8faa3acb4798ad4e95b74de05e5cc7e40496658913ae85);
+#[test]
+fn test_hash_2_with_domain() {
+    let preimage12 = [1, 2];
+    //HashFixedWithDomain([]*big.Int{b1, b2}, big.NewInt(256))
+    //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L99
+    let mut hashFixedDomain = hash_2_with_domain(256, preimage12);
+    assert(hashFixedDomain == 0x05390df727dcce2ddb8faa3acb4798ad4e95b74de05e5cc7e40496658913ae85);
+}
 
-//     //https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L16
-//     //first byte specifies node type which is used as the domain
-
-//     //-------------storageKey----------------
-//     let storageKeyPreImageArr = [
-//         0x0000000000000000000000004402c128c2337d7a6c4c867be68f7714a4e06429, 0x0000000000000000000000000000000000000000000000000000000000000000
-//     ];
-//     //ethers.keccak(storageKeyPreImageConcat)
-//     //identifier of the storage value and contains the key and slot of the mapping 
-//     let storageKey = 0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff;
-
-//     //root of storage proof, used in account proof to walk the merkle path to blockheader
-//     let storageHash = 0x0d5ae1b455fb8efc1be9a7f90e3b312ecaf3ff46930a6f2e0c3ecfb04cb950cd;
-
-//     // account leaf deconstructed
-//     // leaf node        = node key , value len , compress flag , <value len> * value field, key preimage ;
-//     // 0x04 //prefix leafnode
-//     // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // nodekey as field
-//     // 01010000                                                         // value len??
-//     // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value
-//     // 20
-//     // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storageKey
-//     // 0x04                                                             // node type
-//     // 20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf // leaf sybling?
-//     // 05080000                                                         // no clue???
-//     // 00000000000000000000000000000000                                 // reserved 16 bytes of zeros (32 zeros)
-//     // 00000000000016ef                                                 // codesize 8 bytes
-//     // 0000000000000000                                                 // nonce 8 bytes
-//     // 0000000000000000000000000000000000000000000001395d857ace5efb1c6e // balance padded 32 byte
-//     // 098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51 // storageRoot
-//     // e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14 // keccakCodeHash
-//     // 136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be // poseidonCodeHash
-//     // 20
-//     // 5300000000000000000000000000000000000004000000000000000000000000 // contract address padded left 32 byte                                                           // means key preImg not availible
-
-
-//     // key = poseidon(<pre key>, <value hash>)
-
-//     // pre_key = poseidon(field(1), <node key>)
-
-//     // value_hash = poseidon(<leaf element>, <leaf element>) | poseidon(<value hash>, <value hash>)
-
-//     // leaf_element = <value field as field> | poseidon(<compressed field as field>, <compressed field as field>) | field(0)
-
-//     //We encode the path of a new leaf node by traversing the secure key from Least Significant Bit (LSB) to the Most Significant Bit (MSB). At each step, if the bit is 0, we will traverse to the left child; otherwise, traverse to the right child.
-//     // start at end, 0 = left
-
-
-//     //--------------nodeKey-----------------------
-//     //https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L149
-//     //nodeKey := h{256}(storageKey[0:16], storageKey[16:32])
-//     //no padding
-//     let mut storageKeySplit = [0xdd4d389a3e50efed8ae09dd0fdc3adaf, 0x1beae58fd2204e19758755085d876cff];
-//     //ethers.hexlify(ethers.toBeArray("0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff").reverse()).slice(2).match(/.{1,32}/g).map((x)=>"0x"+x)
-//     //storageKeySplit = [0xff6c875d08558775194e20d28fe5ea1b,0xafadc3fdd09de08aedef503e9a384ddd];
-//     let mut nodeKey = hash_2WithDomain(256, storageKeySplit);
-//     println("nodeKey: storageKeyPreImageArr");
-//     println(nodeKey);
-
-//     //--------------valueHash-----------------------
-//     //valueHash = h{512}(storageValue[0:16], storageValue[16:32])
-//     //no padding
-//     let mut valueSplit = [0x00000000000000000000000000000000, 0x000000000000000000900661d8af4c86];
-//     //ethers.zeroPadValue("0x900661d8af4c86",32).slice(2).match(/.{1,2}/g).reverse().join("").match(/.{1,32}/g).map((x)=>"0x"+x).toString()
-//     //valueSplit = [0x864cafd8610690000000000000000000,0x00000000000000000000000000000000];
-//     println("valueSplit");
-//     let mut valueHash = hash_2WithDomain(0x50, valueSplit);
-//     println(valueHash);
-
-//     //----------leafNodeHash-------------
-//     //leafNodeHash = h{LeafNodeType}(nodeKey, valueHash)
-
-//     // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L19
-//     // // NodeTypeLeaf indicates the type of a leaf Node that contains a key &
-// 	// // value.
-// 	// NodeTypeLeaf NodeType = 1
-//     let leafNodeType = 0x01;
-//     let mut leafNodeHash = hash_2WithDomain(leafNodeType, [nodeKey, valueHash]);
-//     println("leafNodeHash");
-//     println(leafNodeHash);
-
-//     let mut nodeType = 0x04;
-//     let mut leafSybling = 0x108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a;
-//     let mut leafNodeWithSyblingHash = hash_2WithDomain(nodeType, [leafNodeHash, leafSybling]);
-//     println("leafNodeWithSyblingHash Left");
-//     println(leafNodeWithSyblingHash);
-//     // leafNodeWithSyblingHash = hash_2WithDomain(nodeType, [leafSybling, leafNodeHash]);
-//     // println("leafNodeWithSyblingHash Right");
-//     // println(leafNodeWithSyblingHash);
-
-    // leafNodeProofDeconstructed
-    // 0x04                                                                                          1  byte
-    // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key                  32 byte            
-    // 01010000                                                         // compressed flag array     4  bytes long
-    // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value                     32 byte   
-    // 20                                                               // preImageSize = 32 bit     1  byte   
-    // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
-
-// }
-
+#[test]
 fn test_storage_leaf_hash() {    
     // leaf as in proof
     // 0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
@@ -443,6 +349,9 @@ fn test_storage_leaf_hash() {
     // 20                                                               // preImageSize = 32 bit     1  byte   
     // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
     
+
+    //----------------------inputs-------------------
+
     // 0x4402c128c2337d7a6c4c867be68f7714a4e06429 = address in mapping lookup on erc balance
     // value = ethers.toBeArray("0x4402c128c2337d7a6c4c867be68f7714a4e06429")
     // zeros = Array(32 - value.length).fill(0);
@@ -452,31 +361,61 @@ fn test_storage_leaf_hash() {
     // value = ethers.toBeArray("0x00")
     // zeros = Array(32 - value.length).fill(0);
     // [...zeros, ...value]
-    let slot: [u8] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ;
-    
-    let storageKeyPreImg: [u8; 64] = key.append(slot).as_array();
-    let storageKeyBytes = std::hash::keccak256(storageKeyPreImg,64);
-    //---------decoded-inputs----------------------------------------
+    let slot: [u8] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+
+
+    // value_preimage_bytes = balance of the address in the lookup (0x4402c128c2337d7a6c4c867be68f7714a4e06429)
+    let value_preimage_bytes: [[u8;32]] = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134]];
+
+    // node_type
+    let leaf_node_type:Field = 0x04;
+
+    //------------------------------------------------
+
+
+    //-----------------hashing----------------------------
+
+    // storage_key
     // node key preImage Hashing. NodeKeyPreImage = storageProof.key
     //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
-    let leafNodeType:Field = 0x04;
+    let storage_key_preImg: [u8; 64] = key.append(slot).as_array();
+    let storage_key_bytes = std::hash::keccak256(storage_key_preImg,64);
 
-    // valuePreimageBytes = balance of the address in the lookup (0x4402c128c2337d7a6c4c867be68f7714a4e06429)
-    let valuePreimageBytes: [[u8;32]] = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134]];
-    //---------------------------------------------------------------
-    
-    //NodeKey
-    let (storageKeyFstHlf, storageKeyLstHlf) = split_byte32_to_fields(storageKeyBytes);
-    let nodeKey = hash_2WithDomain(512, [storageKeyFstHlf, storageKeyLstHlf]);
+    // node_key
+    let (storage_key_first_half, storage_key_last_half) = split_byte32_to_fields(storage_key_bytes);
+    let node_key = hash_2_with_domain(512, [storage_key_first_half, storage_key_last_half]);
 
     //Value Hash
-    let (valuePreImgFst, valuePreImgLst) = split_byte32_to_fields(valuePreimageBytes[0]);
-    let valueHash = hash_2WithDomain(512, [valuePreImgFst, valuePreImgLst]);
+    let (value_preImg_first_half, value_preImg_last_half) = split_byte32_to_fields(value_preimage_bytes[0]);
+    let value_hash = hash_2_with_domain(512, [value_preImg_first_half, value_preImg_last_half]);
     
-    //NodeHash
-    let nodeHash = hash_2WithDomain(leafNodeType,[nodeKey, valueHash]);
+    //node_hash
+    let node_hash = hash_2_with_domain(leaf_node_type,[node_key, value_hash]);
 
-    assert(nodeHash == 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe,  "node_hash doesnt match");
+    //--------------------------------------------------------------------
 
+    assert(node_hash == 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe,  "node_hash doesnt match");
+
+}
+
+#[test]
+fn test_account_leaf_hash() {  
+    assert(false, "not implemented");
+    //leaf as in proof 0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000
+
+    // account leaf deconstructed
+    // 0x04                                                             // node type
+    // 20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf // leaf sybling?
+    // 05080000                                                         // compressed flag array
+    // 00000000000000000000000000000000                                 // reserved 16 bytes of zeros (32 zeros)
+    // 00000000000016ef                                                 // codesize 8 bytes
+    // 0000000000000000                                                 // nonce 8 bytes
+    // 0000000000000000000000000000000000000000000001395d857ace5efb1c6e // balance padded 32 byte
+    // 098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51 // storageRoot
+    // e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14 // keccakCodeHash
+    // 136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be // poseidonCodeHash
+    // 20                                                               // preImageSize = 32 bit     1  byte 
+    // 5300000000000000000000000000000000000004000000000000000000000000 // contract address padded left 32 byte                                                           // means key preImg not availible
+  
 }
 
