@@ -337,11 +337,28 @@ fn test_hash_2_with_domain() {
 }
 
 #[test]
+fn test_node_hash() {
+    // inputs as in proof
+    // 0x0611d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+
+    // inputs decoded
+    // 0x06
+    // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
+    // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
+    let node_type = 0x06;
+    let left_child = 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe;
+    let right_child = 0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040;
+    let node_hash = hash_2_with_domain(node_type, [left_child, right_child]);
+    assert(node_hash == 0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca, "node hash doesnt match");
+}
+
+
+#[test]
 fn test_storage_leaf_hash() {    
     // leaf as in proof
     // 0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
     
-    //leafNodeProofDeconstructed
+    // leafNode decoded
     // 0x04                                                             // leafNode type             1  byte
     // 108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a // node key                  32 byte            
     // 01010000                                                         // compressed flag array     4  bytes long
@@ -403,7 +420,7 @@ fn test_account_leaf_hash() {
     assert(false, "not implemented");
     //leaf as in proof 0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000
 
-    // account leaf deconstructed
+    // account leaf decoded
     // 0x04                                                             // node type
     // 20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf // leaf sybling?
     // 05080000                                                         // compressed flag array
