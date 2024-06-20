@@ -442,13 +442,26 @@ fn test_storage_leaf_hash() {
     // 00000000000000000000000000000000000000000000000000900661d8af4c86 // value                     32 byte   
     // 20                                                               // preImageSize = 32 bit     1  byte   
     // dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff // storage key               32 bye
+    
+    // 0x4402c128c2337d7a6c4c867be68f7714a4e06429 = address in mapping lookup on erc balance
+    // value = ethers.toBeArray("0x4402c128c2337d7a6c4c867be68f7714a4e06429")
+    // zeros = Array(32 - value.length).fill(0);
+    // [...zeros, ...value]
+    let key: [u8] = [0,0,0,0,0,0,0,0,0,0,0,0,68,2,193,40,194,51,125,122,108,76,134,123,230,143,119,20,164,224,100,41]; 
 
-
+    // value = ethers.toBeArray("0x00")
+    // zeros = Array(32 - value.length).fill(0);
+    // [...zeros, ...value]
+    let slot: [u8] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] ;
+    
+    let storageKeyPreImg: [u8; 64] = key.append(slot).as_array();
+    let storageKeyBytes = std::hash::keccak256(storageKeyPreImg,64);
     //---------decoded-inputs----------------------------------------
     // node key preImage Hashing. NodeKeyPreImage = storageProof.key
     //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
     let leafNodeType:Field = 0x04;
-    let storageKeyBytes:[u8;32] = [221,77,56,154,62,80,239,237,138,224,157,208,253,195,173,175,27,234,229,143,210,32,78,25,117,135,85,8,93,135,108,255];
+
+    // valuePreimageBytes = balance of the address in the lookup (0x4402c128c2337d7a6c4c867be68f7714a4e06429)
     let valuePreimageBytes: [[u8;32]] = [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134]];
     //---------------------------------------------------------------
     
