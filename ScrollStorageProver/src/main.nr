@@ -121,8 +121,8 @@ pub fn handling_elems_and_byte32(flagArray: u32, elems: [[u8; 32]]) -> Field {
             // elem.Hash() is just hash_2_with_domain with elem split up in 16 bytes
             // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/byte32.go#L9
             // TODO check if we can split with bn254 decompose without losing data
-            let (firstHalf, lastHalf) = split_byte32_to_fields(elems[i]);
-			ret = ret.push_back(hash_2_with_domain(HASH_DOMAIN_BYTE32 as Field,[firstHalf, lastHalf]));
+            let splitBytes:[Field;2] = split_byte32_to_fields(elems[i]);
+			ret = ret.push_back(hash_2_with_domain(HASH_DOMAIN_BYTE32 as Field,splitBytes));
 		} else {
 			// ret[i] = new(big.Int).SetBytes(elem[:])
             // not sure but it looks like its just the go version of put it in 32 bytes and pad with zeros
@@ -162,7 +162,7 @@ pub fn split_byte32(el: [u8;32]) -> ([u8;16], [u8;16]) {
     (firstHalf, lastHalf)
 }
 
-pub fn split_byte32_to_fields(bytes: [u8;32]) -> (Field, Field) {
+pub fn split_byte32_to_fields(bytes: [u8;32]) -> [Field; 2] {
     let mut firstHalf: Field = 0x0;
     let mut lastHalf: Field = 0x0;
 
@@ -172,7 +172,7 @@ pub fn split_byte32_to_fields(bytes: [u8;32]) -> (Field, Field) {
         lastHalf = lastHalf.add((bytes[32-i] as Field).mul(offset));
         offset *= 256;
     }
-    (firstHalf, lastHalf)
+    [firstHalf, lastHalf]
 }
 
 fn be_bytes16_to_fied(bytes: [u8; 16]) -> Field {
@@ -218,7 +218,7 @@ pub fn hash_elems_with_domain(domain: Field, firstElem: Field, secondElem: Field
 		baseH  = hash_elems_with_domain(domain, baseH, elems[0], &[]);
 	} else if l != 0 {
         assert(false, "NOT IMPLEMENTED hash_elems_with_domain l > 1");
-        //TODO compiler panics from this report the bug
+        // TODO compiler panics from this report the bug
         // let mut tmp:[Field] = &[]; 
         // let tmpLen = (l+1)/2;
         // //tmp =: make([]*big.Int, (l+1)/2)
@@ -399,12 +399,12 @@ fn test_storage_leaf_hash() {
     let storage_key_bytes = std::hash::keccak256(storage_key_preImg,64);
 
     // node_key
-    let (storage_key_first_half, storage_key_last_half) = split_byte32_to_fields(storage_key_bytes);
-    let node_key = hash_2_with_domain(512, [storage_key_first_half, storage_key_last_half]);
+    let storage_key_split:[Field;2] = split_byte32_to_fields(storage_key_bytes);
+    let node_key = hash_2_with_domain(512, storage_key_split);
 
     //Value Hash
-    let (value_preImg_first_half, value_preImg_last_half) = split_byte32_to_fields(value_preimage_bytes[0]);
-    let value_hash = hash_2_with_domain(512, [value_preImg_first_half, value_preImg_last_half]);
+    let value_preImg_split:[Field;2] = split_byte32_to_fields(value_preimage_bytes[0]);
+    let value_hash = hash_2_with_domain(512, value_preImg_split);
     
     //node_hash
     let node_hash = hash_2_with_domain(leaf_node_type,[node_key, value_hash]);
@@ -417,12 +417,12 @@ fn test_storage_leaf_hash() {
 
 #[test]
 fn test_account_leaf_hash() {  
-    assert(false, "not implemented");
+    //assert(false, "not implemented");
     //leaf as in proof 0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000
 
     // account leaf decoded
     // 0x04                                                             // node type
-    // 20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf // leaf sybling?
+    // 20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf // node key
     // 05080000                                                         // compressed flag array
     // 00000000000000000000000000000000                                 // reserved 16 bytes of zeros (32 zeros)
     // 00000000000016ef                                                 // codesize 8 bytes
@@ -433,6 +433,60 @@ fn test_account_leaf_hash() {
     // 136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be // poseidonCodeHash
     // 20                                                               // preImageSize = 32 bit     1  byte 
     // 5300000000000000000000000000000000000004000000000000000000000000 // contract address padded left 32 byte                                                           // means key preImg not availible
-  
+    
+
+    // 0x5300000000000000000000000000000000000004 = the contract address =  the account in the account proof
+    // padded with *trailing* zeros
+    // value = ethers.toBeArray("0x5300000000000000000000000000000000000004")
+    // zeros = Array(32 - value.length).fill(0);
+    // [...value, ...zeros]
+    let key_pre_image = [83,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0];
+    let node_key = hash_2_with_domain(512, split_byte32_to_fields(key_pre_image));
+    // TODO docs is wrong here its domain is 512
+    // https://docs.scroll.io/en/technology/sequencer/zktrie/#ethereum-account-leaf-node
+    assert(node_key == 0x20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf, "node key doesn match");
+    let node_type = 0x04;
+
+    // https://docs.scroll.io/en/technology/sequencer/zktrie/#leaf-node
+    // domain := 256 * 5  // 5 elements to compute the valueHash
+    // valueHash :=
+    //     h{domain}(
+    //         h{domain}(
+    //             h{domain}(nonce||codesize||0, balance),
+    //             h{domain}(
+    //                 storageRoot,
+    //                 compressedKeccakCodeHash,
+    //             ),
+    //         ),
+    //         poseidonCodeHash,
+    //     )
+
+    //0xe8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14.to_be_bytes(32).as_array(); <- doesnt work becuase fields are smaller then 32 byte
+    let keccakCodeHash: [u8;32] =  [232,196,7,51,81,194,107,152,49,193,229,175,21,59,155,228,113,58,74,249,237,253,243,43,88,7,123,115,94,18,15,20];
+    let nonce_codesize_0: Field = 0x0000000000000000000000000000000000000000000016ef0000000000000000; //hash_2_with_domain(512,split_byte32_to_fields(node_value_preimage[0]));
+    let balance: Field = 0x0000000000000000000000000000000000000000000001395d857ace5efb1c6e; //hash_2_with_domain(512,split_byte32_to_fields(node_value_preimage[1]));
+    let storageRoot: Field = 0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51; //hash_2_with_domain(512,split_byte32_to_fields(node_value_preimage[2]));
+    let compressedKeccakCodeHash: Field = hash_2_with_domain(512,split_byte32_to_fields(keccakCodeHash));
+    let poseidonCodeHash: Field = 0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be; //hash_2_with_domain(512,split_byte32_to_fields(node_value_preimage[4]));
+    let domain:Field = 256 * 5;
+    let value_hash: Field = 
+        hash_2_with_domain(domain, [
+            hash_2_with_domain(domain, [
+
+                hash_2_with_domain(domain, [(nonce_codesize_0), (balance)]),
+
+                hash_2_with_domain(domain, [
+                    (storageRoot),
+                    (compressedKeccakCodeHash)
+                    ])
+            ]),
+
+            (poseidonCodeHash)
+        ]);
+        
+
+    println(value_hash);
+    let node_hash = hash_2_with_domain(node_type, [node_key, value_hash]);
+    assert(node_hash == 0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb,"node_hash doesnt match" );
 }
 

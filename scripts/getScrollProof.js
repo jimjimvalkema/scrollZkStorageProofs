@@ -15,7 +15,6 @@ if (typeof process === "object" &&
     typeof require === "function") {
     windowIsEmpty = true;
 } else {
-    console.log("scdsda")
     if (typeof window === "object") {
         // Check if the environment is a Browser
         console.log(window)
