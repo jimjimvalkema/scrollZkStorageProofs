@@ -7,8 +7,9 @@ import {
 import * as fs from 'node:fs/promises';
 import * as snarkjs from "snarkjs"
 
-let windowIsEmpty = true
 
+//----some stuff so i can test things in the browser console (i prefer it)
+let windowIsEmpty = true
 // Check if the environment is Node.js
 if (typeof process === "object" &&
     typeof require === "function") {
@@ -23,10 +24,177 @@ if (typeof process === "object" &&
         window.poseidon1 = poseidon1
         window.poseidon2 = poseidon2
         window.getProof = getProof
+        window.NewNodeFromBytes = NewNodeFromBytes
+        window.DecodeSMTProof = DecodeSMTProof
     }
 
 }
 
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L10
+// just a stripped down version for now
+class zkt {
+    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/hash.go#L48
+    // HashByteLen is the length of the Hash byte array
+    static HashByteLen= 32 
+    
+    //type Byte32 [32]byte
+    static Byte32 = new Uint8Array(Array(32).fill(0))
+
+    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/hash.go#L119
+    // NewHashFromBytes returns a *Hash from a byte array considered to be
+    // a represent of big-endian integer, it swapping the endianness
+    // in the process.
+
+    //mostly for type conversion in go impl but here it just reverses bytes
+    static NewHashFromBytes(byte) {
+        return byte //.reverse()
+    }
+
+}
+Object.freeze(zkt)
+
+// NodeType defines the type of node in the MT.
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L16
+const NodeType = {
+	// NodeTypeParent indicates the type of parent Node that has children.
+	NodeTypeParent: 0,
+	// NodeTypeLeaf indicates the type of a leaf Node that contains a key &
+	// value.
+	NodeTypeLeaf: 1,
+	// NodeTypeEmpty indicates the type of an empty Node.
+	NodeTypeEmpty: 2,
+
+	// DBEntryTypeRoot indicates the type of a DB entry that indicates the
+	// current Root of a MerkleTree
+	DBEntryTypeRoot: 3,
+
+	NodeTypeLeaf_New : 4,
+	NodeTypeEmpty_New: 5,
+	// branch node for both child are terminal nodes
+	NodeTypeBranch_0: 6,
+	// branch node for left child is terminal node and right child is branch
+	NodeTypeBranch_1: 7,
+	// branch node for left child is branch node and right child is terminal
+	NodeTypeBranch_2: 8,
+	// branch node for both child are branch nodes
+	NodeTypeBranch_3: 9.
+}
+Object.freeze(NodeType)
+
+// Node is the struct that represents a node in the MT. The node should not be
+// modified after creation because the cached key won't be updated.
+class Node {
+    // Type is the type of node in the tree.
+	Type //NodeType
+	// ChildL is the node hash of the left child of a parent node.
+	ChildL //*zkt.Hash
+	// ChildR is the node hash of the right child of a parent node.
+	ChildR //*zkt.Hash
+	// NodeKey is the node's key stored in a leaf node.
+	NodeKey //*zkt.Hash
+	// ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
+	// and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
+	// elemments would be calculated first
+	ValuePreimage //[]zkt.Byte32
+	// CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
+	CompressedFlags //uint32
+	// nodeHash is the cache of the hash of the node to avoid recalculating
+	nodeHash //*zkt.Hash
+	// valueHash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
+	valueHash //*zkt.Hash
+	// KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
+	KeyPreimage //*zkt.Byte32
+    constructor ({Type}={}) {
+        this.Type = Type
+    }
+
+}
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L131  
+// NewNodeFromBytes creates a new node by parsing the input []byte.
+export function  NewNodeFromBytes(b) {
+	if (b.length < 1) {
+        throw new Error('ErrNodeBytesBadSize');
+	}
+	const n = new Node({Type: b[0]});
+    console.log(b[0])
+	b = b.slice(1);
+	switch (n.Type) {
+        case NodeType.NodeTypeParent:
+        case NodeType.NodeTypeBranch_0:
+        case NodeType.NodeTypeBranch_1: 
+        case NodeType.NodeTypeBranch_2: 
+        case NodeType.NodeTypeBranch_3:
+            if (b.length != 2*zkt.HashByteLen) {
+                throw new Error("ErrNodeBytesBadSize")
+                //return nil, ErrNodeBytesBadSize
+            }
+            n.ChildL = zkt.NewHashFromBytes(b.slice(0,zkt.HashByteLen))
+            n.ChildR = zkt.NewHashFromBytes(b.slice(zkt.HashByteLen, zkt.HashByteLen*2))
+
+        case NodeType.NodeTypeLeaf:
+        case NodeType.NodeTypeLeaf_New:
+            if (b.length < zkt.HashByteLen+4) {
+                throw new Error("ErrNodeBytesBadSize")
+                //return nil, ErrNodeBytesBadSize
+            }
+            n.NodeKey = zkt.NewHashFromBytes(b.slice(0,zkt.HashByteLen));
+            const mark = ethers.toBigInt(b.slice(zkt.HashByteLen , zkt.HashByteLen+4).reverse())
+            const preimageLen = mark & 255n
+            n.CompressedFlags = mark >> 8n
+            n.ValuePreimage = Array(preimageLen).fill(new Uint8Array(Array(32).fill(0)))//make([]zkt.Byte32, preimageLen)
+            let curPos = BigInt(zkt.HashByteLen) + 4n
+            if (b.length < curPos+preimageLen*32n+1n) {
+                throw new Error("ErrNodeBytesBadSize")
+                //return nil, ErrNodeBytesBadSize
+            }
+            for (let i = 0n; i < preimageLen; i++) {
+                //copy(n.ValuePreimage[i][:], b[i*32+curPos:(i+1)*32+curPos])
+                console.log(i*32n+curPos, (i+1n)*32n+curPos)
+                n.ValuePreimage[i] =  b.slice(Number(i*32n+curPos), Number((i+1n)*32n+curPos))
+                
+            }
+            curPos += preimageLen * 32n
+            const preImageSize = BigInt(b[curPos])
+            curPos += 1n
+            //TODO see if we realy need bigint
+            if (preImageSize != 0) {
+                if (b.length < curPos+preImageSize) {
+                    throw new Error("ErrNodeBytesBadSize")
+                    //return nil, ErrNodeBytesBadSize
+                }
+                n.KeyPreimage = structuredClone(zkt.Byte32)
+                console.log(ethers.hexlify(n.KeyPreimage))
+                //copy(n.KeyPreimage[:], b[curPos:curPos+preImageSize])
+                n.KeyPreimage =  b.slice(Number(curPos),Number(curPos+preImageSize))
+                console.log(ethers.hexlify(n.KeyPreimage))
+            }
+        case NodeType.NodeTypeEmpty, NodeType.NodeTypeEmpty_New:
+            break
+        default:
+            console.log(n)
+            throw new Error("ErrNodeBytesBadSize")
+            //return nil, ErrInvalidNodeFound
+	}
+	return n
+}
+
+
+
+const magicSMTBytes = new TextEncoder().encode("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")//[]byte("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")
+
+// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_proof.go#L19
+// DecodeProof try to decode a node bytes, return can be nil for any non-node data (magic code)
+export function DecodeSMTProof(bytes) {
+
+	if (ethers.hexlify(bytes) === ethers.hexlify(magicSMTBytes)) {// a1.every((c,i)=>magicSMTBytes[i] === bytes[i])    ) {
+		//skip magic bytes node
+        console.warn("skipping magicSMTBytes")
+		return 0
+	}
+
+	return NewNodeFromBytes(data)
+}
 
 
 
