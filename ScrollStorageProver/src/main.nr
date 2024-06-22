@@ -216,11 +216,11 @@ fn test_account_leaf_hash() {
         hash_2_with_domain(domain, [
             hash_2_with_domain(domain, [
 
-                hash_2_with_domain(domain, [(nonce_codesize_0), (balance)]),
+                hash_2_with_domain(domain, [nonce_codesize_0, balance]),
 
                 hash_2_with_domain(domain, [
-                    (storageRoot),
-                    (compressedKeccakCodeHash)
+                    storageRoot,
+                    compressedKeccakCodeHash
                     ])
             ]),
 
