@@ -3,6 +3,7 @@ import { buildPoseidon, buildPoseidonWasm, buildPoseidonOpt } from "circomlibjs"
 import { 
     poseidon1,poseidon2,poseidon3,poseidon4,poseidon5,poseidon6,poseidon7,poseidon8,poseidon9,poseidon10,poseidon11,poseidon12,poseidon13,poseidon14,poseidon15,poseidon16 
 } from "poseidon-lite";
+import { getCurveFromName } from "ffjavascript";
 
 import * as fs from 'node:fs/promises';
 import * as snarkjs from "snarkjs"
@@ -17,14 +18,20 @@ if (typeof process === "object" &&
 } else {
     if (typeof window === "object") {
         // Check if the environment is a Browser
-        console.log(window)
         windowIsEmpty = false;
         window.ethers = ethers
+        window.getCurveFromName = getCurveFromName;
+        window.buildPoseidon = buildPoseidon
         window.poseidon1 = poseidon1
         window.poseidon2 = poseidon2
+        window.poseidon3 = poseidon3
         window.getProof = getProof
         window.NewNodeFromBytes = NewNodeFromBytes
         window.DecodeSMTProof = DecodeSMTProof
+        const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
+        const provider = new ethers.JsonRpcProvider(PROVIDERURL)
+        window.provider = provider
+        window.getStorageAt = getStorageAt
     }
 
 }
@@ -241,8 +248,9 @@ export function createStoragePositionMappingPosseidon(key, keyType, mappingPos) 
 export async function getStorageAt(contractAddress, position, blockNumber, provider) {
     const blockNumberHex = "0x" + blockNumber.toString(16)
     const params = [contractAddress, position, blockNumberHex]
-    //console.log({contractAddress,position,blockNumberHex})
+    console.log('eth_getStorageAt', params)
     const storageKey = await provider.send('eth_getStorageAt', params)
+    console.log({storageKey})
     return storageKey
 }
 
@@ -265,35 +273,6 @@ export async function getCodeHashKeccak(contract) {
 
 }
 
-
-
-async function getScollProof() {
-    //scroll
-    const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
-    const provider = new ethers.JsonRpcProvider(PROVIDERURL)
-    const blockNumber =  Number(0x62be1f) //await provider.getBlockNumber("latest")
-
-    //weth
-    const contractAddress = "0x5300000000000000000000000000000000000004"
-    //weth whale
-    const lookUpAddress = "0x4402c128c2337d7a6c4c867be68f7714a4e06429"
-    //slot pos for balances of weth contract
-    const mappingSlot = "0x00"
-    //get possition of mapping value keccak(lookUpAddress, mappingPosition ) 
-    const storageKey = createStoragePositionMapping(lookUpAddress, "address", mappingSlot)
-    const proof = await getProof(contractAddress, storageKey, blockNumber, provider)
-    console.log({proof})
-    //cheesy ah test to see if we're in browser
-    if(windowIsEmpty === true) {
-
-        await fs.writeFile('./out/scrollProof.json', JSON.stringify(proof, null, 2));
-    }
-   
-    // const storageValue = ethers.zeroPadValue(ethers.toBeArray("0x1ac50393b5e904485"), 32)
-    // const valueHash = poseidon2(["0x0" + storageValue.slice(2, 34), "0x0" + storageValue.slice(34, 66)])
-    // const keyValuePadded = ethers.zeroPadBytes(lookUpAddress, 32).slice(2)
-    // const keyHash = ethers.toBeHex(poseidon2(["0x0" + keyValuePadded.slice(0, 16), "0x0" + keyValuePadded.slice(16, 32)]))
-}
 
 async function getMainnetProof() {
     //scroll
@@ -355,9 +334,54 @@ async function codeHashWifSplit(code, width=3) {
     console.log({width,splitCodeHash, codeHashPreImage})//maybe poseidon 18
 } 
 
+async function getScollProofMapping() {
+    //scroll
+    const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
+    const provider = new ethers.JsonRpcProvider(PROVIDERURL)
+    const blockNumber =  Number(0x62be1f) //await provider.getBlockNumber("latest")
+
+    //weth
+    const contractAddress = "0x5300000000000000000000000000000000000004"
+    //weth whale
+    const lookUpAddress = "0x4402c128c2337d7a6c4c867be68f7714a4e06429"
+    //slot pos for balances of weth contract
+    const mappingSlot = "0x00"
+    //get possition of mapping value keccak(lookUpAddress, mappingPosition ) 
+    const storageKey = createStoragePositionMapping(lookUpAddress, "address", mappingSlot)
+    const proof = await getProof(contractAddress, storageKey, blockNumber, provider)
+    console.log({proof})
+    //cheesy ah test to see if we're in browser
+    if(windowIsEmpty === true) {
+
+        await fs.writeFile('./out/scrollProof.json', JSON.stringify(proof, null, 2));
+    }
+}
+
+export async function getScollProofValue() {
+    //scroll
+    const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
+    const provider = new ethers.JsonRpcProvider(PROVIDERURL)
+    const blockNumber =  Number(0x62be1f) //await provider.getBlockNumber("latest")
+
+    //weth
+    const contractAddress = "0x5300000000000000000000000000000000000004"
+    //slot pos for balances of weth contract
+    const slot = ethers.zeroPadValue("0x03", 32)
+    //get possition of mapping value keccak(lookUpAddress, mappingPosition ) 
+    //const storageKey = await getStorageAt("0x5300000000000000000000000000000000000004",slot, blockNumber, provider)
+    const proof = await getProof(contractAddress, slot, blockNumber, provider)
+    console.log({proof})
+    //cheesy ah test to see if we're in browser
+    if(windowIsEmpty === true) {
+
+        await fs.writeFile('./out/scrollProofValue.json', JSON.stringify(proof, null, 2));
+    }
+
+}
 async function main() {
 
-    await getScollProof()
+    //await getScollProofMapping()
+   await getScollProofValue()
 }
 
 await main()
