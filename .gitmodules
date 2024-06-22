@@ -1,0 +1,3 @@
+[submodule "lib/poseidon-lite-for-scroll"]
+	path = lib/poseidon-lite-for-scroll
+	url = https://github.com/jimjimvalkema/poseidon-lite-for-scroll.git

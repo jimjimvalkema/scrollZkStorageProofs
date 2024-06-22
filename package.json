@@ -8,6 +8,7 @@
   },
   "type": "module",
   "scripts": {
+    "install": "yarn install; cd lib/poseidon-lite-for-scroll; npm i; npm run build;",
     "dev": "vite ./scripts/",
     "build": "vite build",
     "preview": "vite preview"
