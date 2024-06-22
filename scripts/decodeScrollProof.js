@@ -1,6 +1,6 @@
 import  {poseidon2}  from "../lib/poseidon-lite-for-scroll/build/index.js"
 import {N, assert, ethers} from "ethers"
-import { MptNode } from "./types/MptNode.js";
+import { ZkTrieNode } from "./types/ZkTrieNode.js";
 
 
 export function hashNode(node) {
@@ -42,7 +42,7 @@ function main() {
     // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
     // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
 
-    const node = new MptNode()
+    const node = new ZkTrieNode()
     node.childL = "0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"
     node.childR = "0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"
     node.setType(0x06)

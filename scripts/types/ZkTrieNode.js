@@ -27,7 +27,7 @@ export const NodeTypes = {
 Object.freeze(NodeTypes)
 
 
-export class MptNode {
+export class ZkTrieNode {
 	//TODO make single object
     type;
     typeName;
