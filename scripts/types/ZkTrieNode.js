@@ -27,26 +27,35 @@ export const NodeTypes = {
 Object.freeze(NodeTypes)
 
 
+
 export class ZkTrieNode {
     type;
     typeName;
 
+	mark;
+
+	valuePreimage;
+	keyPreimage;
+
     childR;
     childL;
     hash;
+
+	nodeKey;
+	compressedFlags;
 	
     constructor({hash, type}={}) {
         Object.seal(this)
-		
+
 		this.hash = hash
-		if (type !== undefined) {
+		if (type) {
 			this.type = type
 			this.getTypeName()
 		}
     }
 
 	getTypeName() {
-		this.typeName = NodeTypes[this.type]
+		this.typeName = Object.keys(NodeTypes).find((typeName)=>NodeTypes[typeName] === this.type)
 		return this.typeName
 	}
 }
