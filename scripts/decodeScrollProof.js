@@ -27,7 +27,7 @@ if (!windowIsEmpty) {
 function main() {
     //HashFixedWithDomain([]*big.Int{b1, b2}, big.NewInt(256))
     //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L99
-    const domain = 256n
+    const domain = 256
     const preimage = [1,2]
     const hash = ethers.toBeHex(poseidon2(preimage,domain))
     console.log(hash)
@@ -42,12 +42,11 @@ function main() {
     // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
     // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
 
-    const node = new ZkTrieNode()
-    node.childL = "0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"
-    node.childR = "0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"
-    node.setType(0x06)
+    const node = new ZkTrieNode({type:0x06})
+    node.childL = new ZkTrieNode({hash:"0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"})
+    node.childR = new ZkTrieNode({hash:"0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"})
 
-    node.hash = ethers.toBeHex(poseidon2([node.childL, node.childR], BigInt(node.type)))
+    node.hash = ethers.toBeHex(poseidon2([node.childL.hash, node.childR.hash], node.type))
     console.log(node.hash)
     assert(node.hash === "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca")
 }

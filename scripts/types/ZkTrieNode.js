@@ -28,7 +28,6 @@ Object.freeze(NodeTypes)
 
 
 export class ZkTrieNode {
-	//TODO make single object
     type;
     typeName;
 
@@ -36,16 +35,18 @@ export class ZkTrieNode {
     childL;
     hash;
 	
-    constructor() {
+    constructor({hash, type}={}) {
         Object.seal(this)
+		
+		this.hash = hash
+		if (type !== undefined) {
+			this.type = type
+			this.getTypeName()
+		}
     }
 
-    setType(type) {
-        const typeName = Object.keys(NodeTypes).find(key => NodeTypes[key] === type);
-        if (!typeName in NodeTypes) {
-            throw new Error('invalid type');
-        }
-        this.type = type;
-        this.typeName = typeName;
-    }
+	getTypeName() {
+		this.typeName = NodeTypes[this.type]
+		return this.typeName
+	}
 }
