@@ -19,7 +19,7 @@ export function  nodeFromBytes(b) {
         case NodeTypes.NodeTypeBranch_2: 
         case NodeTypes.NodeTypeBranch_3:
             if (b.length != 2*Zkt.HashByteLen) {
-                throw new Error("ErrNodeBytesBadSize")
+                throw new Error(`ErrNodeBytesBadSize (b.length < ${2*Zkt.HashByteLen}, b.length=${b.length})`)
                 //return nil, ErrNodeBytesBadSize
             }
             //Zkt.HashByteLen = 32
@@ -27,6 +27,7 @@ export function  nodeFromBytes(b) {
             const childRHash = b.slice(Zkt.HashByteLen, Zkt.HashByteLen*2)// Zkt.NewHashFromBytes(b.slice(Zkt.HashByteLen, Zkt.HashByteLen*2))
             n.childL = new ZkTrieNode({hash:ethers.hexlify(childLHash)})
             n.childR = new ZkTrieNode({hash:ethers.hexlify(childRHash)})
+            break
 
         case NodeTypes.NodeTypeLeaf:
         case NodeTypes.NodeTypeLeaf_New:
@@ -65,6 +66,7 @@ export function  nodeFromBytes(b) {
                 //copy(n.KeyPreimage[:], b[curPos:curPos+preImageSize])
                 n.keyPreimage =  ethers.hexlify(b.slice(Number(curPos),Number(curPos+preImageSize)))
             }
+            break
         case NodeTypes.NodeTypeEmpty:
         case NodeTypes.NodeTypeEmpty_New:
             break
@@ -97,7 +99,6 @@ if (!windowIsEmpty) {
 }
 
 function main() {
-    console.log(new ZkTrieNode({type: 4}))
     //HashFixedWithDomain([]*big.Int{b1, b2}, big.NewInt(256))
     //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L99
     const domain = 256
@@ -123,8 +124,21 @@ function main() {
     console.log(node.hash)
     assert(node.hash === "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca")
 
-    const nodeBytes = ethers.toBeArray("0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000")
-    console.log(nodeFromBytes(nodeBytes))
+    const nodeBytesStorageLeaf = ethers.toBeArray("0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff")
+    const storageLeaf = nodeFromBytes(nodeBytesStorageLeaf)
+
+    const nodeBytesAccountLead = ethers.toBeArray("0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000")
+    const accountLeaf = nodeFromBytes(nodeBytesAccountLead)
+
+    const nodeBytesBranch = ethers.toBeArray("0x092885368fe22b35247e6bcbd16f4730e420da8b7e5c4a0da81dacc86fadae39272c342e07f95e2472f32bf2637467f30a2343e3f4fc702ac088c7e196d4de708b")
+    const branch = nodeFromBytes(nodeBytesBranch)
+
+    console.log({
+        storageLeaf,
+        accountLeaf,
+        branch
+    })
+
 }
 
 main()
