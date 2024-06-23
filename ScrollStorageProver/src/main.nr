@@ -5,10 +5,23 @@ use dep::std::hash::poseidon::bn254::perm;
 global HASH_DOMAIN_ELEMS_BASE:Field = 256; // TODO maybe change to u8 ??
 global HASH_DOMAIN_BYTE32:Field     = 2 * HASH_DOMAIN_ELEMS_BASE;
 
-//used hash_2 from noirs std as example
-//https://github.com/noir-lang/noir/blob/8a322998ee60875f7abe4dc222f8fdc20cb0ee0a/noir_stdlib/src/hash/poseidon/bn254.nr#L24
-//and from the go-ethereum scroll repo
-//https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon.go#L157
+pub fn split_byte32_to_fields(bytes: [u8;32]) -> [Field; 2] {
+    let mut firstHalf: Field = 0x0;
+    let mut lastHalf: Field = 0x0;
+
+    let mut offset = 1;
+    for i in 1..17 {
+        firstHalf = firstHalf.add((bytes[16-i] as Field).mul(offset));
+        lastHalf = lastHalf.add((bytes[32-i] as Field).mul(offset));
+        offset *= 256;
+    }
+    [firstHalf, lastHalf]
+}
+
+// used hash_2 from noirs std as example
+// https://github.com/noir-lang/noir/blob/8a322998ee60875f7abe4dc222f8fdc20cb0ee0a/noir_stdlib/src/hash/poseidon/bn254.nr#L24
+// and from the go-ethereum scroll repo
+// https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon.go#L157
 pub fn hash_2_with_domain(domain: Field, input: [Field; 2]) -> Field {
     let mut state = [0; 3];
     state[0] = domain;
@@ -17,6 +30,28 @@ pub fn hash_2_with_domain(domain: Field, input: [Field; 2]) -> Field {
     }
     perm::x5_3(state)[0]
 }
+
+// used merkle from noir std as example
+// https://github.com/noir-lang/noir/blob/49e1b0c0d45565f3e87469b77f2fef0c283f6ea1/noir_stdlib/src/merkle.nr#L5
+// Returns the merkle root of the tree from the provided leaf, its hashpath, domains, using a poseidon2 with the domain argument
+pub fn compute_merkle_root<N>(leaf_hash: Field, node_key: Field, hash_path: [Field; N], domains: [Field; N]) -> Field {
+    let n = hash_path.len();
+    let node_key_bits = node_key.to_le_bits(n as u32);
+    let mut current = leaf_hash;
+    for i in 0..n {
+        let path_bit = node_key_bits[i] as bool;
+        let (hash_left, hash_right) = if path_bit {
+            (hash_path[i], current)
+        } else {
+            (current, hash_path[i])
+        };
+        let domain = domains[i];
+        current = hash_2_with_domain(domain,[hash_left, hash_right]);
+    }
+    current
+}
+
+
 
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L92
 // Node is the struct that represents a node in the MT. The node should not be
@@ -46,19 +81,6 @@ struct Node {
     value_hash: Field,           // *zkt.Hash
     // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
     KeyPreimage: [u8;32]          // *zkt.Byte32
-}
-
-pub fn split_byte32_to_fields(bytes: [u8;32]) -> [Field; 2] {
-    let mut firstHalf: Field = 0x0;
-    let mut lastHalf: Field = 0x0;
-
-    let mut offset = 1;
-    for i in 1..17 {
-        firstHalf = firstHalf.add((bytes[16-i] as Field).mul(offset));
-        lastHalf = lastHalf.add((bytes[32-i] as Field).mul(offset));
-        offset *= 256;
-    }
-    [firstHalf, lastHalf]
 }
 
 #[test]
