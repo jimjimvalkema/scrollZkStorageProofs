@@ -1,0 +1,163 @@
+{
+  "type": 9,
+  "typeName": "NodeTypeBranch_3",
+  "hash": "0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51",
+  "childR": {
+    "hash": "0x1590f4aaba59ff46a09d7a6a152cbf27280c2fbaa4bb94aa3eefab3bbd7d6e19"
+  },
+  "childL": {
+    "type": 9,
+    "typeName": "NodeTypeBranch_3",
+    "hash": "0x0cc290e414db319dd2e2e8d43c0058c425b26221b32cc36d1d3941b34d396e94",
+    "childR": {
+      "type": 9,
+      "typeName": "NodeTypeBranch_3",
+      "hash": "0x058c266ab0bf91f06e644f0530d59653ec16b9bf9220159f601372512ba7bf3b",
+      "childR": {
+        "hash": "0x1dd281308230419c26bcd28b8ed40c561922c8c881e552f76c6575d16863e5ec"
+      },
+      "childL": {
+        "type": 9,
+        "typeName": "NodeTypeBranch_3",
+        "hash": "0x158309e9abee742bc6d4279e68b1355336215354277f96f88be2490726066943",
+        "childR": {
+          "type": 9,
+          "typeName": "NodeTypeBranch_3",
+          "hash": "0x3032049a36b8d6669b1b81924daac180ca06a73c73927fa101ccfe96e744f577",
+          "childR": {
+            "hash": "0x0d0f3ad20d01ebbc06dddc8a4a4969088c6306a59e0941d09c608b86cddedf50"
+          },
+          "childL": {
+            "type": 9,
+            "typeName": "NodeTypeBranch_3",
+            "hash": "0x25f489c2e726e8a3f5cd5ff6085e2513ad1456d35c9dfa8c741e16ae17a31886",
+            "childR": {
+              "hash": "0x17ddf467aa6ad4be84637262c8bde743f303851b55a90cecaeb62f20949dd26a"
+            },
+            "childL": {
+              "type": 9,
+              "typeName": "NodeTypeBranch_3",
+              "hash": "0x07d13d267cc9a21dcd2a467176a526b21e76d72d787d59afdf364df86b4b4894",
+              "childR": {
+                "hash": "0x169c51364a1a5d0d2fdf569654fdbb01f0fc57ce96f51224ace6c2b122a278f2"
+              },
+              "childL": {
+                "type": 9,
+                "typeName": "NodeTypeBranch_3",
+                "hash": "0x03a3cbe25cefb64e1f42ad2ba065ead4a384c7e624c43fcad0f88deb50e73ff6",
+                "childR": {
+                  "hash": "0x2c516cd8168873553bf5613fa108cf158db9f77356a14e5999a089bcb30bcc0d"
+                },
+                "childL": {
+                  "type": 9,
+                  "typeName": "NodeTypeBranch_3",
+                  "hash": "0x0378e55af2da261390881788852c7a7e648ebf37481d2fa7113723b657aae225",
+                  "childR": {
+                    "hash": "0x279df33aa48b973b0c4711959ba4032c91115266da7d46aa1eef4d5b4df50529"
+                  },
+                  "childL": {
+                    "type": 9,
+                    "typeName": "NodeTypeBranch_3",
+                    "hash": "0x108840ebe71ca72e4b1c194ce7f40a696aae890a1ae20ece235bc301e1a9b372",
+                    "childR": {
+                      "type": 9,
+                      "typeName": "NodeTypeBranch_3",
+                      "hash": "0x2be65e78a04a1dbffc25d3ab268c7617476b1656c9e1590bb612e8c37b32fc50",
+                      "childR": {
+                        "type": 9,
+                        "typeName": "NodeTypeBranch_3",
+                        "hash": "0x156074e388e80c3f7ea978ec6b7bc80dbb2ac851a4ac39be9bc51650ec642967",
+                        "childR": {
+                          "type": 9,
+                          "typeName": "NodeTypeBranch_3",
+                          "hash": "0x0a7a1176a696dd9595e289745cc908e458c0fcfa71a77c4d65eece358a784dbb",
+                          "childR": {
+                            "hash": "0x2acc21883e7d177c905ca2431c11fed214eebeaf95bb5bb3ff18b6988bcd2f6c"
+                          },
+                          "childL": {
+                            "type": 9,
+                            "typeName": "NodeTypeBranch_3",
+                            "hash": "0x0be472a5c5f2535d9446f6bbc8adc078ec8215ad32b04afffec048b8a807cf64",
+                            "childR": {
+                              "hash": "0x2fde6d7e33e7c0dbf7448021a23e1b9f861de9906be91401e32987c506fa0a38"
+                            },
+                            "childL": {
+                              "type": 9,
+                              "typeName": "NodeTypeBranch_3",
+                              "hash": "0x0c591b96137a2a977908ca6c584db20a99ea5707eb10b593c2db666c5789010d",
+                              "childR": {
+                                "hash": "0x1eaff424e9893b368db781d66aee078fa2e932a269c009b6951586a5063bb3fb"
+                              },
+                              "childL": {
+                                "type": 9,
+                                "typeName": "NodeTypeBranch_3",
+                                "hash": "0x200cdfa6604b0794d7cc350f560b2f5e5ca12fff5a11c8762fd51a94e3d432e9",
+                                "childR": {
+                                  "type": 9,
+                                  "typeName": "NodeTypeBranch_3",
+                                  "hash": "0x0309d298507a5dba4e633db52a1eec26da8e680fe9d26221bc092ef42eb4865f",
+                                  "childR": {
+                                    "type": 8,
+                                    "typeName": "NodeTypeBranch_2",
+                                    "hash": "0x0220e6ca10522885d6d0e6c93f3d757224bc3ef70f497b6773a742d5ad0dc3cb",
+                                    "childR": {
+                                      "hash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                                    },
+                                    "childL": {
+                                      "type": 7,
+                                      "typeName": "NodeTypeBranch_1",
+                                      "hash": "0x18ab293fb42d86675d07c83761765f5d1af0bcecaa0da7f9b2317552a633c6db",
+                                      "childR": {
+                                        "type": 6,
+                                        "typeName": "NodeTypeBranch_0",
+                                        "hash": "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca",
+                                        "childR": {
+                                          "hash": "0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"
+                                        },
+                                        "childL": {
+                                          "hash": "0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"
+                                        }
+                                      },
+                                      "childL": {
+                                        "hash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                                      }
+                                    }
+                                  },
+                                  "childL": {
+                                    "hash": "0x1dbb1b961bc57d29f8b809aea22725896f8fe0054b90fb1a0f20ef8ce6b348e5"
+                                  }
+                                },
+                                "childL": {
+                                  "hash": "0x2cbc648029cf765385f6a17be45bbe74628c15d4c08f8d5e3f4491d94ae177e3"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "childL": {
+                          "hash": "0x064fe3c43019c279d94c50619936c695080152678ca4448656e54790b124ba10"
+                        }
+                      },
+                      "childL": {
+                        "hash": "0x0e3a034343d14f2e9fa79bc58f3c5e83212ab34ad4216494ce5d0ba69a24129f"
+                      }
+                    },
+                    "childL": {
+                      "hash": "0x1e01222677655045108f8adabfb6b5aae23d15b6e8b865b885d22677930b1327"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "childL": {
+          "hash": "0x2704a07ac2ab2eef36c79b8e22eb2ebc49dfe7417500b04aac96b6f3babb802c"
+        }
+      }
+    },
+    "childL": {
+      "hash": "0x13a303bbb1e8cf20f48dd19ae218fda161c83fa10a7915615f0cc7028be36e4d"
+    }
+  }
+}

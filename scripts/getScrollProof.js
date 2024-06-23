@@ -26,7 +26,7 @@ if (typeof process === "object" &&
         window.poseidon2 = poseidon2
         window.poseidon3 = poseidon3
         window.getProof = getProof
-        window.NewNodeFromBytes = NewNodeFromBytes
+        //window.NewNodeFromBytes = NewNodeFromBytes
         window.DecodeSMTProof = DecodeSMTProof
         const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
         const provider = new ethers.JsonRpcProvider(PROVIDERURL)
