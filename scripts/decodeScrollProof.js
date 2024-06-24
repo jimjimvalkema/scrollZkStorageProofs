@@ -85,10 +85,74 @@ export function  nodeFromBytes(b) {
 	return n
 }
 
+export function hashSplitVal(val) {
+    const domain = 512
+    const first16bytes = val.slice(0,32+2)
+    const last16bytes = "0x"+val.slice(32+2,64+2)
+    return ethers.toBeHex(poseidon2([first16bytes, last16bytes],domain))
+}
+
+function splitArr(_arr,groupSize) {
+    // prevent bugs if we dont modify existing arr
+    const arr = structuredClone(_arr)
+    const newArrLen =  Math.ceil(arr.length/groupSize)
+    const newArr = []
+    for (let index = 0; index < newArrLen; index++) {
+        newArr.push(arr.splice(0,2))
+    }
+    return newArr
+}
+
+export function hashElems(domain,elems) {
+    const groupedArr = splitArr(elems,2)
+    const hashedElems = groupedArr.map((preImage)=>{
+        if(preImage.length === 2) {
+            return ethers.toBeHex(poseidon2(preImage, domain))
+        } else {
+            return preImage[0]
+        }
+    })
+    if (hashedElems.length === 2) {
+        hashedElems.reverse()
+    }
+
+    let resHash
+    if (hashedElems.length === 1 ) {
+        resHash = hashedElems[0]
+    } else if (hashedElems.length === 2) {
+        // TODO this will break when elems.length > 4 and a even lenght
+        // it asumes that when hashedElems === 2 the last item is a left over
+        // maybe track left overs? idk how to deal with left uneven left overs
+        // shouldn't be a issue with storage proof tho since their value preImages
+        // are either lenght 1 (storage leaf) or 5 (account leaf)
+        resHash = ethers.toBeHex(poseidon2(hashedElems.reverse(), domain))
+    } else {
+        resHash = hashElems(domain, hashedElems)
+    }
+    return resHash
+
+   
+
+}
+
+/**
+ * 
+ * @param {ZkTrieNode} node 
+ * @returns 
+ */
 export function hashNode(node) {
-    console.log(node.type)
     if (leafTypes.includes(node.type)) {
-        throw new Error("leaf hashing not implemented yet")
+        console.log({compressedFlags: node.compressedFlags})
+        const valuesWithCompressed = node.valuePreimage.map((preImage, index)=>{
+            if (node.compressedFlags[index]) {
+                return hashSplitVal(preImage)
+            } else {
+                return preImage
+            }
+        })
+        const domain = 256*node.valuePreimage.length
+        const valueHash =  hashElems(domain, valuesWithCompressed)
+        return ethers.toBeHex(poseidon2([node.nodeKey, valueHash], node.type))
 
     } else {
         node.hash = ethers.toBeHex(poseidon2([node.childL.hash, node.childR.hash], node.type));
@@ -113,6 +177,7 @@ if (typeof process === "object" &&
 const magicSMTBytes = new TextEncoder().encode("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")//[]byte("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")
 
 export async function verifyProof() {
+;
 
     //last item is always magic bytes (irrelevant). TODO detect it instead
     const proof = storageProofMapping.storageProof[0].proof.slice(0,-1)
@@ -122,12 +187,12 @@ export async function verifyProof() {
     rootNode.hash = hashNode(rootNode)
 
     //const leafNode = nodeFromBytes(ethers.toBeArray(proof[proofLen-2]))
-    const leafNode = nodeFromBytes(ethers.toBeArray(proof.pop()))
-    // leafNode.hash = hashNode(rootNode)
+    const leafNode = nodeFromBytes(ethers.toBeArray(proof.pop()))//[proofLen-2]))
+    leafNode.hash = hashNode(leafNode)
+    console.log({leafNodehash: leafNode.hash})
 
     let currentNode = rootNode
-    const hashPathBools = []
-    for (const nodeBytes of proof) {
+    for (const [i,nodeBytes] of proof.entries()) {
         if (nodeBytes === ethers.hexlify(magicSMTBytes)) {// a1.every((c,i)=>magicSMTBytes[i] === bytes[i])    ) {
             //skip magic bytes node
             console.warn("skipping magicSMTBytes")
@@ -136,19 +201,20 @@ export async function verifyProof() {
         const newNode = nodeFromBytes(ethers.toBeArray(nodeBytes))
         newNode.hash = hashNode(newNode)
 
-        if (currentNode.childL.hash == newNode.hash) {
-            currentNode.childL = newNode
-            hashPathBools.push(false)
-        } else if ((currentNode.childR.hash == newNode.hash)) {
+        if (leafNode.hashPathBools[i]){//(currentNode.childL.hash == newNode.hash) {
+            if (currentNode.childR.hash !== newNode.hash) {
+                throw new Error("invallid proof")
+            }
             currentNode.childR = newNode
-            hashPathBools.push(true)
-        } else {
-            throw new Error("invallid proof")
-        }
+        } else{
+            if ((currentNode.childL.hash !== newNode.hash)) {
+                throw new Error("invallid proof")
+            }
+            currentNode.childL = newNode
+
+        } 
         currentNode = newNode
     }
-    console.log(leafNode.hashPathBools.slice(0, proofLen+1))
-    console.log(hashPathBools)
     await fs.writeFile('./scripts/out/rootNode.json', JSON.stringify(rootNode, null, 2));
 }
 

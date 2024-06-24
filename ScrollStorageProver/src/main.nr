@@ -194,7 +194,7 @@ fn test_account_leaf_hash() {
     // 0000000000000000                                                 // nonce 8 bytes
     // 0000000000000000000000000000000000000000000001395d857ace5efb1c6e // balance padded 32 byte
     // 098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51 // storageRoot
-    // e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14 // keccakCodeHash
+    // e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14 // keccakCodeHash // 0x0b76dac2b0a40ec033204a8924a316feab1261917f1807c68dca97310bf17edb
     // 136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be // poseidonCodeHash
     // 20                                                               // preImageSize = 32 bit     1  byte 
     // 5300000000000000000000000000000000000004000000000000000000000000 // contract address padded left 32 byte                                                           // means key preImg not availible
@@ -249,8 +249,6 @@ fn test_account_leaf_hash() {
             (poseidonCodeHash)
         ]);
         
-
-    println(value_hash);
     let node_hash = hash_2_with_domain(node_type, [node_key, value_hash]);
     assert(node_hash == 0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb,"node_hash doesnt match" );
 }
