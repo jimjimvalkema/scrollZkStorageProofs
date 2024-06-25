@@ -247,69 +247,6 @@ export function verifyHashPath(hashPath, nodeTypes, leafNode ) {
     return currentHash
 }
 
-async function verifyProofFromRootNode() {
-
-    //last item is always magic bytes (irrelevant). TODO detect it instead
-    const proof = storageProofMapping.storageProof[0].proof.slice(0,-1)
-    const proofLen = proof.length
-
-    const rootNode = nodeFromBytes(ethers.toBeArray(proof.shift())) //extract top node to use as current node
-    rootNode.hash = hashNode(rootNode)
-    console.log({rootNode})
-
-    //const leafNode = nodeFromBytes(ethers.toBeArray(proof[proofLen-2]))
-    const leafNode = nodeFromBytes(ethers.toBeArray(proof[proof.length-1]))//.pop()))//[proofLen-2]))
-    leafNode.hash = hashNode(leafNode)
-    const hashPathBools = leafNode.hashPathBools.slice(0,proof.length)
-
-
-    let currentNode = rootNode
-    const hashPath = []
-    const bools=[]
-
-    console.log({proof})
-    for (const [i,nodeBytes] of proof.entries()) {
-        if (nodeBytes === ethers.hexlify(magicSMTBytes)) {// a1.every((c,i)=>magicSMTBytes[i] === bytes[i])    ) {
-            //skip magic bytes node
-            console.warn("skipping magicSMTBytes")
-        }
-
-        const newNode = nodeFromBytes(ethers.toBeArray(nodeBytes))
-        newNode.hash = hashNode(newNode)
-
-        const hashRight = hashPathBools[i]//leafNode.hashPathBools[i+1]
-        if (hashRight===undefined) {throw Error("oh oh undefined")}
-        bools.push(hashRight)
-        //console.log({hashRight})
-        if (hashRight){ //(currentNode.childL.hash == newNode.hash) {
-            if (currentNode.childR.hash !== newNode.hash) {
-                throw new Error("invallid proof")
-            }
-            hashPath.push(currentNode.childL.hash)
-            currentNode.childL = newNode
-            
-        } else{
-            if ((currentNode.childL.hash !== newNode.hash)) {
-                throw new Error("invallid proof")
-            }
-            hashPath.push(currentNode.childR.hash)
-            currentNode.childR = newNode
-            
-
-        } 
-        currentNode = newNode
-    
-    }
-    console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-    console.log({hashPathBools})
-    await fs.writeFile('./scripts/out/bools.json', JSON.stringify(hashPathBools.slice().reverse()));
-    await fs.writeFile('./scripts/out/leafNodebools.json', JSON.stringify(leafNode.hashPathBools, null, 2));
-    
-    await fs.writeFile('./scripts/out/rootNode.json', JSON.stringify(rootNode, null, 2));
-    
-    await fs.writeFile('./scripts/out/hashPathRootNode.json', JSON.stringify(hashPath.slice().reverse(), null, 2));
-}
-
 
 if (!windowIsEmpty) {
     window.hashNode = hashNode;
