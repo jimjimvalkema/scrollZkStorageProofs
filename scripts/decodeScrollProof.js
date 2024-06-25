@@ -22,6 +22,12 @@ if (typeof process === "object" &&
 
 // https://github.com/scroll-tech/Zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L131  
 // NewNodeFromBytes creates a new node by parsing the input []byte.
+
+/**
+ * 
+ * @param {ethers.BytesLike} b 
+ * @returns {ZkTrieNode}
+ */
 export function  nodeFromBytes(b) {
     if (typeof(b) === "string") {
         b = ethers.toBeArray(b)
@@ -103,6 +109,13 @@ export function  nodeFromBytes(b) {
 
 
 // hashing--------------------
+
+/**
+ * 
+ * @param {any[]} _arr 
+ * @param {number} groupSize 
+ * @returns {any[any[]]}
+ */
 function splitArr(_arr,groupSize) {
     // prevent bugs if we dont modify existing arr
     const arr = structuredClone(_arr)
@@ -114,7 +127,11 @@ function splitArr(_arr,groupSize) {
     return newArr
 }
 
-
+/**
+ * 
+ * @param {hexString} val 
+ * @returns 
+ */
 export function hashSplitVal(val) {
     const domain = 512
     const first16bytes = val.slice(0,32+2)
@@ -122,7 +139,12 @@ export function hashSplitVal(val) {
     return ethers.toBeHex(poseidon2([first16bytes, last16bytes],domain))
 }
 
-
+/**
+ * 
+ * @param {ethers.BytesLike|number} domain 
+ * @param {ethers.BytesLike[]} elems 
+ * @returns 
+ */
 export function hashElems(domain,elems) {
     const groupedArr = splitArr(elems,2)
     const hashedElems = groupedArr.map((preImage)=>{
@@ -153,6 +175,11 @@ export function hashElems(domain,elems) {
     return resHash
 }
 
+/**
+ * 
+ * @param {ZkTrieNode} node 
+ * @returns {ethers.BytesLike[]} valuesWithCompressed
+ */
 export function getCompressedPreimage(node) {
     const valuesWithCompressed = node.valuePreimage.map((preImage, index)=>{
         if (node.compressedFlags[index]) {
@@ -164,6 +191,11 @@ export function getCompressedPreimage(node) {
     return valuesWithCompressed
 }
 
+/**
+ * 
+ * @param {ZkTrieNode} node 
+ * @returns {ethers.BytesLike} valueHash
+ */
 export function getValueHash(node) {
     const valuesWithCompressed = getCompressedPreimage(node)
     const domain = 256*node.valuePreimage.length
@@ -174,7 +206,7 @@ export function getValueHash(node) {
 /**
  * 
  * @param {ZkTrieNode} node 
- * @returns 
+ * @returns {ethers.BytesLike} hash
  */
 export function hashNode(node) {
     if (leafTypes.includes(node.type)) {
@@ -194,6 +226,15 @@ export function isMagicBytes(nodeBytes) {
     return nodeBytes === ethers.hexlify(magicSMTBytes)
 }
 
+/** 
+ * @param {ethers.BytesLike[]} _proof 
+ * 
+ * @typedef proofData
+ * @property {ethers.BytesLike[]} hashPath from leaf sybling to root 
+ * @property {number[]} nodeTypes from leaf sybling to root
+ * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
+ * @returns {proofData} proofData
+ */
 export function getHashPathFromProof(_proof) {
     //pre process proof
     const proof = _proof.slice().reverse()
@@ -218,8 +259,9 @@ export function getHashPathFromProof(_proof) {
             hashPath.push(node.childR.hash)
         }
     }
-
-    return {hashPath, nodeTypes, leafNode}
+    
+    const proofData = {hashPath, nodeTypes, leafNode}
+    return  proofData
 }
 
 /**
@@ -231,7 +273,7 @@ export function getHashPathFromProof(_proof) {
  */
 export function verifyHashPath(hashPath, nodeTypes, leafNode ) {
     let currentHash = hashNode(leafNode)
-    const hashPathBools = leafNode.hashPathBools.slice(0,hashPath.length).reverse()
+    const hashPathBools = leafNode.hashPathBools.slice(0,hashPath.length).reverse() 
 
     for (const [index, hash] of hashPath.entries()) {
         const hashRight = hashPathBools[index] 
@@ -294,10 +336,22 @@ async function main() {
 
     //extract hashpath and verify
     const {hashPath, nodeTypes, leafNode} = getHashPathFromProof(storageProofMapping.storageProof[0].proof)
+    console.log({hashPath})
     const rootHash = verifyHashPath(hashPath, nodeTypes, leafNode)
     assert(rootHash === storageProofMapping.storageHash, 
         "failed to verify hashPath"
     )
+    // quick note about the leafNode obj
+    // leafNode contains hashPathBools wich is made from the leafNode.nodekey
+    // done at nodeFromBytes at: n.hashPathBools =  BigInt(n.nodeKey).toString(2).split('').map(x => x === '1').reverse()
+
+    // leafNode.nodeKey is made from hashing the storage key: poseidon2([first16bytes, last16bytes], 512)
+    // at function: hashSplitVal
+    
+    // The storageKey in mapping is a keccak hash of the key and slot (like ethereum mainnet)
+    // ex in a mapping on er20 balances: 
+    // const preImage = ethers.zeroPadValue(address,32)+ethers.zeroPadValue(slot,32).slice(2)
+    // const storageKey = ethers.keccak256(preImage)
 }
 
 await main()
