@@ -10,6 +10,9 @@ import storageProofMapping from './out/scrollProofMapping.json' assert {type: 'j
 // https://github.com/scroll-tech/Zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L131  
 // NewNodeFromBytes creates a new node by parsing the input []byte.
 export function  nodeFromBytes(b) {
+    if (typeof(b) === "string") {
+        b = ethers.toBeArray(b)
+    }
 	if (b.length < 1) {
         throw new Error('ErrNodeBytesBadSize');
 	}
@@ -120,19 +123,35 @@ export function hashElems(domain,elems) {
     if (hashedElems.length === 1 ) {
         resHash = hashedElems[0]
     } else if (hashedElems.length === 2) {
-        // TODO this will break when elems.length > 4 and a even lenght
-        // it asumes that when hashedElems === 2 the last item is a left over
-        // maybe track left overs? idk how to deal with left uneven left overs
-        // shouldn't be a issue with storage proof tho since their value preImages
+        // TODO hashedElems.reverse() might break things when elems.length > 4 and a even lenght.
+        // it asumes that when hashedElems === 2 the last item is a left over.
+        // maybe track left overs? idk how to deal with left uneven left overs.
+        // maybe its normal? maybe its just results in a unbalanced tree part being on the left?
+        // shouldn't be a issue with storage proof though since their value preImages,
         // are either lenght 1 (storage leaf) or 5 (account leaf)
         resHash = ethers.toBeHex(poseidon2(hashedElems.reverse(), domain))
     } else {
         resHash = hashElems(domain, hashedElems)
     }
     return resHash
+}
 
-   
+function getCompressedPreimage(node) {
+    const valuesWithCompressed = node.valuePreimage.map((preImage, index)=>{
+        if (node.compressedFlags[index]) {
+            return hashSplitVal(preImage)
+        } else {
+            return preImage
+        }
+    })
+    return valuesWithCompressed
+}
 
+function getValueHash(node) {
+    const valuesWithCompressed = getCompressedPreimage(node)
+    const domain = 256*node.valuePreimage.length
+    const valueHash =  hashElems(domain, valuesWithCompressed)
+    return valueHash
 }
 
 /**
@@ -142,16 +161,7 @@ export function hashElems(domain,elems) {
  */
 export function hashNode(node) {
     if (leafTypes.includes(node.type)) {
-        console.log({compressedFlags: node.compressedFlags})
-        const valuesWithCompressed = node.valuePreimage.map((preImage, index)=>{
-            if (node.compressedFlags[index]) {
-                return hashSplitVal(preImage)
-            } else {
-                return preImage
-            }
-        })
-        const domain = 256*node.valuePreimage.length
-        const valueHash =  hashElems(domain, valuesWithCompressed)
+        const valueHash = getValueHash(node)
         return ethers.toBeHex(poseidon2([node.nodeKey, valueHash], node.type))
 
     } else {
@@ -176,8 +186,7 @@ if (typeof process === "object" &&
 
 const magicSMTBytes = new TextEncoder().encode("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")//[]byte("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")
 
-export async function verifyProof() {
-;
+export async function verifyProofFromRootNode() {
 
     //last item is always magic bytes (irrelevant). TODO detect it instead
     const proof = storageProofMapping.storageProof[0].proof.slice(0,-1)
@@ -216,6 +225,49 @@ export async function verifyProof() {
         currentNode = newNode
     }
     await fs.writeFile('./scripts/out/rootNode.json', JSON.stringify(rootNode, null, 2));
+}
+
+function isMagicBytes(nodeBytes) {
+    return nodeBytes === ethers.hexlify(magicSMTBytes)
+}
+
+async function getHashPathFromProof(_proof) {
+    //pre process proof
+    //const proof = _proof.slice().reverse()
+    const proof = storageProofMapping.storageProof[0].proof.slice().reverse()
+    if (isMagicBytes(proof[0])) {proof.splice(0,1)}
+    const proofLen = proof.length
+
+    //get hasPathBools from leaf
+    const leafNode = nodeFromBytes(proof.shift())
+    const hashPathBools = leafNode.hashPathBools
+
+    //init
+    const hashPath = []
+    const nodeTypes = []
+
+    //debug
+    //const hashes = []
+    
+    for (const [index,nodeBytes] of proof.entries()) {
+        const node = nodeFromBytes(nodeBytes)
+        nodeTypes.push(node.type)
+
+        const hashLeft = hashPathBools[proofLen-1 - index]
+        if (hashLeft) {
+            hashPath.push(node.childL.hash)
+        } else {
+            hashPath.push(node.childR.hash)
+        }
+        
+        //debug
+        // hashes.push(hashNode(node))
+    }
+    // debug
+    // const leafHash = hashNode(leafNode)
+    // console.log({leafHash, hashPath,hashes, nodeTypes})
+
+    return {hashPath, nodeTypes, leafNode}
 }
 
 if (!windowIsEmpty) {
@@ -265,7 +317,7 @@ async function main() {
     //     branch
     // })
 
-    await verifyProof()
+    console.log(await getHashPathFromProof())
 
 
 }
