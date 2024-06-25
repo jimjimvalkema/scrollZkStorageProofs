@@ -32,9 +32,9 @@ export const leafTypes = [NodeTypes.NodeTypeLeaf_New, NodeTypes.NodeTypeEmpty_Ne
 Object.freeze(leafTypes)
 
 export class ZkTrieNode {
-	/**@type {number} */
+	/** @type {number} (between 0-9)*/
     type;
-	/**@type {string} */
+	/**@type {string} Object.keys(NodeTypes)*/
     typeName;
 	/**@type {ethers.BytesLike|string} */
 	hash;
