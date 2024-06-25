@@ -6,6 +6,19 @@ import * as fs from 'node:fs/promises';
 
 import storageProofMapping from './out/scrollProofMapping.json' assert {type: 'json'}
 
+//----some stuff so i can test things in the browser console (i prefer it)
+let windowIsEmpty = true
+// Check if the environment is Node.js
+if (typeof process === "object" &&
+    typeof require === "function") {
+    windowIsEmpty = true;
+} else {
+    if (typeof window === "object") {
+        windowIsEmpty = false;
+    }
+}
+
+// decoding--------------
 
 // https://github.com/scroll-tech/Zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L131  
 // NewNodeFromBytes creates a new node by parsing the input []byte.
@@ -88,13 +101,8 @@ export function  nodeFromBytes(b) {
 	return n
 }
 
-export function hashSplitVal(val) {
-    const domain = 512
-    const first16bytes = val.slice(0,32+2)
-    const last16bytes = "0x"+val.slice(32+2,64+2)
-    return ethers.toBeHex(poseidon2([first16bytes, last16bytes],domain))
-}
 
+// hashing--------------------
 function splitArr(_arr,groupSize) {
     // prevent bugs if we dont modify existing arr
     const arr = structuredClone(_arr)
@@ -105,6 +113,15 @@ function splitArr(_arr,groupSize) {
     }
     return newArr
 }
+
+
+export function hashSplitVal(val) {
+    const domain = 512
+    const first16bytes = val.slice(0,32+2)
+    const last16bytes = "0x"+val.slice(32+2,64+2)
+    return ethers.toBeHex(poseidon2([first16bytes, last16bytes],domain))
+}
+
 
 export function hashElems(domain,elems) {
     const groupedArr = splitArr(elems,2)
@@ -136,7 +153,7 @@ export function hashElems(domain,elems) {
     return resHash
 }
 
-function getCompressedPreimage(node) {
+export function getCompressedPreimage(node) {
     const valuesWithCompressed = node.valuePreimage.map((preImage, index)=>{
         if (node.compressedFlags[index]) {
             return hashSplitVal(preImage)
@@ -147,7 +164,7 @@ function getCompressedPreimage(node) {
     return valuesWithCompressed
 }
 
-function getValueHash(node) {
+export function getValueHash(node) {
     const valuesWithCompressed = getCompressedPreimage(node)
     const domain = 256*node.valuePreimage.length
     const valueHash =  hashElems(domain, valuesWithCompressed)
@@ -162,7 +179,7 @@ function getValueHash(node) {
 export function hashNode(node) {
     if (leafTypes.includes(node.type)) {
         const valueHash = getValueHash(node)
-        return ethers.toBeHex(poseidon2([node.nodeKey, valueHash], node.type))
+        node.hash = ethers.toBeHex(poseidon2([node.nodeKey, valueHash], node.type))
 
     } else {
         node.hash = ethers.toBeHex(poseidon2([node.childL.hash, node.childR.hash], node.type));
@@ -171,36 +188,86 @@ export function hashNode(node) {
     return node.hash
 }
 
-
-//----some stuff so i can test things in the browser console (i prefer it)
-let windowIsEmpty = true
-// Check if the environment is Node.js
-if (typeof process === "object" &&
-    typeof require === "function") {
-    windowIsEmpty = true;
-} else {
-    if (typeof window === "object") {
-        windowIsEmpty = false;
-    }
+//proofing --------------------
+export const magicSMTBytes = new TextEncoder().encode("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")//[]byte("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")
+export function isMagicBytes(nodeBytes) {
+    return nodeBytes === ethers.hexlify(magicSMTBytes)
 }
 
-const magicSMTBytes = new TextEncoder().encode("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")//[]byte("THIS IS SOME MAGIC BYTES FOR SMT m1rRXgP2xpDI")
+export function getHashPathFromProof(_proof) {
+    //pre process proof
+    const proof = _proof.slice().reverse()
+    if (isMagicBytes(proof[0])) {proof.shift()}
 
-export async function verifyProofFromRootNode() {
+    //get hasPathBools from leaf
+    const leafNode = nodeFromBytes(proof.shift())
+    const hashPathBools = leafNode.hashPathBools.slice(0, proof.length).reverse()
+
+    //init
+    const hashPath = []
+    const nodeTypes = []
+    
+    for (const [index,nodeBytes] of proof.entries()) {
+        const node = nodeFromBytes(nodeBytes)
+        nodeTypes.push(node.type)
+
+        const hashRight = hashPathBools[index]
+        if (hashRight) {
+            hashPath.push(node.childL.hash)
+        } else {
+            hashPath.push(node.childR.hash)
+        }
+    }
+
+    return {hashPath, nodeTypes, leafNode}
+}
+
+/**
+ * 
+ * @param {ethers.BytesLike[]} hashPath 
+ * @param {number[]} nodeTypes 
+ * @param {ZkTrieNode} leafNode 
+ * @returns {ethers.BytesLike} 
+ */
+export function verifyHashPath(hashPath, nodeTypes, leafNode ) {
+    let currentHash = hashNode(leafNode)
+    const hashPathBools = leafNode.hashPathBools.slice(0,hashPath.length).reverse()
+
+    for (const [index, hash] of hashPath.entries()) {
+        const hashRight = hashPathBools[index] 
+        if (hashRight === undefined){throw new Error("undefined :(")}
+        if (hashRight) {
+            //console.log(`left: ${hash}, right: ${currentHash},\nnodeType: ${nodeTypes[index]}\n`)
+            currentHash = ethers.toBeHex(poseidon2([hash ,currentHash], nodeTypes[index]))
+        } else {
+            //console.log(`left: ${currentHash}, right: ${hash},\nnodeType: ${nodeTypes[index]}\n`)
+            currentHash = ethers.toBeHex(poseidon2([currentHash ,hash], nodeTypes[index]))
+        }        
+    }
+    return currentHash
+}
+
+async function verifyProofFromRootNode() {
 
     //last item is always magic bytes (irrelevant). TODO detect it instead
     const proof = storageProofMapping.storageProof[0].proof.slice(0,-1)
     const proofLen = proof.length
 
-    const rootNode = nodeFromBytes(ethers.toBeArray(proof.shift()))
+    const rootNode = nodeFromBytes(ethers.toBeArray(proof.shift())) //extract top node to use as current node
     rootNode.hash = hashNode(rootNode)
+    console.log({rootNode})
 
     //const leafNode = nodeFromBytes(ethers.toBeArray(proof[proofLen-2]))
-    const leafNode = nodeFromBytes(ethers.toBeArray(proof.pop()))//[proofLen-2]))
+    const leafNode = nodeFromBytes(ethers.toBeArray(proof[proof.length-1]))//.pop()))//[proofLen-2]))
     leafNode.hash = hashNode(leafNode)
-    console.log({leafNodehash: leafNode.hash})
+    const hashPathBools = leafNode.hashPathBools.slice(0,proof.length)
+
 
     let currentNode = rootNode
+    const hashPath = []
+    const bools=[]
+
+    console.log({proof})
     for (const [i,nodeBytes] of proof.entries()) {
         if (nodeBytes === ethers.hexlify(magicSMTBytes)) {// a1.every((c,i)=>magicSMTBytes[i] === bytes[i])    ) {
             //skip magic bytes node
@@ -210,65 +277,39 @@ export async function verifyProofFromRootNode() {
         const newNode = nodeFromBytes(ethers.toBeArray(nodeBytes))
         newNode.hash = hashNode(newNode)
 
-        if (leafNode.hashPathBools[i]){//(currentNode.childL.hash == newNode.hash) {
+        const hashRight = hashPathBools[i]//leafNode.hashPathBools[i+1]
+        if (hashRight===undefined) {throw Error("oh oh undefined")}
+        bools.push(hashRight)
+        //console.log({hashRight})
+        if (hashRight){ //(currentNode.childL.hash == newNode.hash) {
             if (currentNode.childR.hash !== newNode.hash) {
                 throw new Error("invallid proof")
             }
-            currentNode.childR = newNode
+            hashPath.push(currentNode.childL.hash)
+            currentNode.childL = newNode
+            
         } else{
             if ((currentNode.childL.hash !== newNode.hash)) {
                 throw new Error("invallid proof")
             }
-            currentNode.childL = newNode
+            hashPath.push(currentNode.childR.hash)
+            currentNode.childR = newNode
+            
 
         } 
         currentNode = newNode
-    }
-    await fs.writeFile('./scripts/out/rootNode.json', JSON.stringify(rootNode, null, 2));
-}
-
-function isMagicBytes(nodeBytes) {
-    return nodeBytes === ethers.hexlify(magicSMTBytes)
-}
-
-async function getHashPathFromProof(_proof) {
-    //pre process proof
-    //const proof = _proof.slice().reverse()
-    const proof = storageProofMapping.storageProof[0].proof.slice().reverse()
-    if (isMagicBytes(proof[0])) {proof.splice(0,1)}
-    const proofLen = proof.length
-
-    //get hasPathBools from leaf
-    const leafNode = nodeFromBytes(proof.shift())
-    const hashPathBools = leafNode.hashPathBools
-
-    //init
-    const hashPath = []
-    const nodeTypes = []
-
-    //debug
-    //const hashes = []
     
-    for (const [index,nodeBytes] of proof.entries()) {
-        const node = nodeFromBytes(nodeBytes)
-        nodeTypes.push(node.type)
-
-        const hashLeft = hashPathBools[proofLen-1 - index]
-        if (hashLeft) {
-            hashPath.push(node.childL.hash)
-        } else {
-            hashPath.push(node.childR.hash)
-        }
-        
-        //debug
-        // hashes.push(hashNode(node))
     }
-    // debug
-    // const leafHash = hashNode(leafNode)
-    // console.log({leafHash, hashPath,hashes, nodeTypes})
-
-    return {hashPath, nodeTypes, leafNode}
+    console.log("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+    console.log({hashPathBools})
+    await fs.writeFile('./scripts/out/bools.json', JSON.stringify(hashPathBools.slice().reverse()));
+    await fs.writeFile('./scripts/out/leafNodebools.json', JSON.stringify(leafNode.hashPathBools, null, 2));
+    
+    await fs.writeFile('./scripts/out/rootNode.json', JSON.stringify(rootNode, null, 2));
+    
+    await fs.writeFile('./scripts/out/hashPathRootNode.json', JSON.stringify(hashPath.slice().reverse(), null, 2));
 }
+
 
 if (!windowIsEmpty) {
     window.hashNode = hashNode;
@@ -281,45 +322,45 @@ async function main() {
     const domain = 256
     const preimage = [1,2]
     const hash = ethers.toBeHex(poseidon2(preimage,domain))
-    console.log(hash)
     assert(hash === "0x05390df727dcce2ddb8faa3acb4798ad4e95b74de05e5cc7e40496658913ae85")
-
-
-    // inputs as in proof
-    // 0x0611d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
-
-    // inputs decoded
-    // 0x06
-    // 11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe
-    // 082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040
 
     const node = new ZkTrieNode({type:0x06})
     node.childL = new ZkTrieNode({hash:"0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"})
     node.childR = new ZkTrieNode({hash:"0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"})
 
     node.hash = ethers.toBeHex(poseidon2([node.childL.hash, node.childR.hash], node.type))
-    console.log(node.hash)
-    assert(node.hash === "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca")
+    assert(node.hash === "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca", 
+        "Node hash doesnt match"
+    )
 
     const nodeBytesStorageLeaf = ethers.toBeArray("0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff")
     const storageLeaf = nodeFromBytes(nodeBytesStorageLeaf)
+    hashNode(storageLeaf);
+    assert(storageLeaf.hash === "0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe",
+        "storageLeafHash doesnt match"
+    )
 
-    const nodeBytesAccountLead = ethers.toBeArray("0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000")
-    const accountLeaf = nodeFromBytes(nodeBytesAccountLead)
+    const nodeBytesAccountLeaf = ethers.toBeArray("0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000")
+    const accountLeaf = nodeFromBytes(nodeBytesAccountLeaf)
+    hashNode(accountLeaf);
+    assert(accountLeaf.hash === "0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb",
+        "accountLeafHash doesnt match"
+    )
 
     const nodeBytesBranch = ethers.toBeArray("0x090cc290e414db319dd2e2e8d43c0058c425b26221b32cc36d1d3941b34d396e941590f4aaba59ff46a09d7a6a152cbf27280c2fbaa4bb94aa3eefab3bbd7d6e19")
     const branch = nodeFromBytes(nodeBytesBranch)
     hashNode(branch);
-
-    // console.log({
-    //     storageLeaf,
-    //     accountLeaf,
-    //     branch
-    // })
-
-    console.log(await getHashPathFromProof())
+    assert(branch.hash === "0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51",
+        "branchNodeHash doesnt match"
+    )
 
 
+    //extract hashpath and verify
+    const {hashPath, nodeTypes, leafNode} = getHashPathFromProof(storageProofMapping.storageProof[0].proof)
+    const rootHash = verifyHashPath(hashPath, nodeTypes, leafNode)
+    assert(rootHash === storageProofMapping.storageHash, 
+        "failed to verify hashPath"
+    )
 }
 
 await main()
