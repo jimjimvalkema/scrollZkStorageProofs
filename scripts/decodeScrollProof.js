@@ -65,12 +65,12 @@ export function  nodeFromBytes(b) {
             
             // decode compressedFlagsBytes
             const compressedFlagsBytes = b.slice(Zkt.HashByteLen , Zkt.HashByteLen+4)
-            n.reversedCompressedFlagsHex = ethers.hexlify(compressedFlagsBytes)
+            n.reversedCompressedFlagsHex = ethers.hexlify(b.slice(Zkt.HashByteLen+1, Zkt.HashByteLen+4))
             const mark = ethers.toNumber(compressedFlagsBytes.reverse())
             
             //preimage length
             const preimageLen = mark & 255
-            n.preimageLenHex = ethers.toBeHex(preimageLen)
+            n.preimageLenHex = ethers.hexlify(b.slice(Zkt.HashByteLen , Zkt.HashByteLen+1))
 
             // compressed bool flags
             const compressedFlagsUnpadded = (mark >> 8).toString(2).split('').map(x => x === '1').reverse()

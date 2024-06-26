@@ -258,7 +258,7 @@
     "typeHex": "0x04",
     "nodeKey": "0x20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf",
     "preimageLenHex": "0x05",
-    "reversedCompressedFlagsHex": "0x05080000",
+    "reversedCompressedFlagsHex": "0x080000",
     "valuePreimage": [
       "0x0000000000000000000000000000000000000000000016ef0000000000000000",
       "0x0000000000000000000000000000000000000000000001395d857ace5efb1c6e",
