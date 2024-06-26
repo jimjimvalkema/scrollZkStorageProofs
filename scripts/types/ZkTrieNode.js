@@ -32,25 +32,29 @@ export const leafTypes = [NodeTypes.NodeTypeLeaf_New, NodeTypes.NodeTypeEmpty_Ne
 Object.freeze(leafTypes)
 
 export class ZkTrieNode {
-	/** @type {number} (between 0-9)*/
-    type;
-	/**@type {string} Object.keys(NodeTypes)*/
-    typeName;
 	/**@type {ethers.BytesLike|string} */
 	hash;
-
+	/**@type {string} Object.keys(NodeTypes)*/
+	typeName;
+	/** @type {number} (between 0-9)*/
+	type;
+	/** @type {ethers.BytesLike} (between 0x00-0x09)*/
+    typeHex
 	/**@type {ethers.BytesLike} */
-	mark=undefined;
+	nodeKey=undefined;
+	/**@type {ethers.BytesLike} */
+	preimageLenHex=undefined
+	/**@type {ethers.BytesLike} */
+	reversedCompressedFlagsHex=undefined;
 	/**@type {ethers.BytesLike[]} */
 	valuePreimage=[];
 	/**@type {ethers.BytesLike} */
 	keyPreimage=undefined;
-	/**@type {ethers.BytesLike} */
-	nodeKey=undefined;
-	/**@type {bool[]} */
-	hashPathBools=[];
+
 	/**@type {bool[]} */
 	compressedFlags=[];
+	/**@type {ethers.BytesLike} */
+	hashPathBools=[];
 
 	/**@type {ethers.BytesLike} */
 	childR=undefined;
@@ -103,6 +107,7 @@ export class ZkTrieNode {
 	 */
 	getTypeName() {
 		this.typeName = Object.keys(NodeTypes).find((typeName)=>NodeTypes[typeName] === this.type)
+		this.typeHex = ethers.toBeHex(this.type)
 		return this.typeName
 	}
 }

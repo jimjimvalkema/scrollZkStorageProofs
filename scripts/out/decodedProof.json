@@ -1,0 +1,534 @@
+[
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x226eda7f433d3f3e022b45071cc1d33f4c3e3c26dbe26554496d6cbe8bf63be2"
+    },
+    "childL": {
+      "hash": "0x1a405dfd689829d259c07d7962144343a2052edd73d8d805958c107d31d54860"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x099b622c48fd9d841a6df85cbda7fc00e3854dcc285627d90450b36e88611716"
+    },
+    "childL": {
+      "hash": "0x0e22fafbcae714df93561f55ce0ec547c98ae23e0f58a0e4cd5fe157edca1c4f"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x15498bced6d97f6108fa7480f67d775fbd467047a5c1276d39ed87c7ee357bc5"
+    },
+    "childL": {
+      "hash": "0x2ad53eebc0132ed6cefb20cb9bb3379d8e7aa0b14d83663dc508aa16607a5efb"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x1c7c16617c2a78e9ab17bbf6f467cf92f7db8453b50c34cc9d0a672915d5da39"
+    },
+    "childL": {
+      "hash": "0x0e8692bbc1d31269263cef16273badc1aebc37f1047bcd03c117a82c5b878610"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x280e879ecd56effd57efa75ad61f808dd7b410e1e6f6d1cd0c8c793c4c1b2f55"
+    },
+    "childL": {
+      "hash": "0x269ae40a8f39ab073983fb6fe0e384a865bcc21ec6e09e307fcc8692a6151ebc"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x0dc44be05703a33acb8c11756ad727c227fd086c46469a26a7a9d6750f439616"
+    },
+    "childL": {
+      "hash": "0x1caaf7cbbcbef8ad339c4e4675698051ea42dc8d9058c1a7409e94ac6c15d768"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x03db5e89291a51d6e035f34c99fd97e80cb490ac714a54a2826fa4dbbf4a4ad9"
+    },
+    "childL": {
+      "hash": "0x2f98ca34e139c1057f0a30611814d34de4d80813497d7c9c863e697c95aa3cb5"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x16571963b741d84dc9c6c225ccd2c1848b116905cecd4583b3731934f9a39acb"
+    },
+    "childL": {
+      "hash": "0x20641a9afc11694b5a8c8acec09dc9f70a75fbc7914d1f5e9a41f15cd00665ae"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x2309d7599612bb43f1bb17e40747eef76c254d444daaae064052edd1972f4440"
+    },
+    "childL": {
+      "hash": "0x25a745d398418df72ed2cbc5c0592ac9c5cb7b9239b75cc7bc9cc9cb703bcb99"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x149966c5c9cb6966c568fb099c5385b0b4831be1f29f3592833749fb15bf405d"
+    },
+    "childL": {
+      "hash": "0x2f5aab45eac22748b2ee6ce25632f18b3f8b4f4bc0dfa6a507088621148444f3"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x04b27b0260173f6b7c1e5ed400c97e3b991c21bc87b2f89e8ab988569974b9b8"
+    },
+    "childL": {
+      "hash": "0x0466fc11eb066d337c51cf870f18084e95000e890245833bcb16a134a22c4723"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x142645d94c0c354967ed2b6ebfd1c8bb79c2bcefa900c55dcd997259c3efc5b4"
+    },
+    "childL": {
+      "hash": "0x1c41fc3e5ece5c5d2ccb67595d3a89fb39d43b32827f0464dd6aeb8f1a9ca701"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x13c97981b6360a26dbe4f4694175d1d9a0e248ba734bf9e9e4d57df3c53f2437"
+    },
+    "childL": {
+      "hash": "0x1fcc85f210ed4e87ccc12f35c054028b9f9bea303da5880f2449e48c8da16785"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x2572f551d3601dd8acb7d2dae54e291c9a184184ce7c2c69b03683def7189afe"
+    },
+    "childL": {
+      "hash": "0x0258b45271d86dfd4706c256753a684f08a05d258a5fff6750b0e2fd32e1cf4d"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x236870fc39cf794601198ad68c0cbf687761835fbc181564416e1441c8ff1468"
+    },
+    "childL": {
+      "hash": "0x134c58331016b26e8e3eedd0955eb8a54dab8e290ea9b957f4713cc79be917a6"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x2c342e07f95e2472f32bf2637467f30a2343e3f4fc702ac088c7e196d4de708b"
+    },
+    "childL": {
+      "hash": "0x2885368fe22b35247e6bcbd16f4730e420da8b7e5c4a0da81dacc86fadae3927"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x23788f01f4d33a0b82c90eac04a0ec7e757418c49af8b9c5a41710e11665bf20"
+    },
+    "childL": {
+      "hash": "0x242415f663834078570a91f27e9a1bcee2d0c0a0936c1010fe0d92c8ea935a18"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x1a6f70985dabaa2e6854ff4a77688664b825eb2f18145ed05d5ff8c4524bfd34"
+    },
+    "childL": {
+      "hash": "0x0f7f936cd304525d85e1b33fedc1f62b9bfd87030ffb7b843eacd445fc4aea7f"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x160bcff072cec6d5f61ed69d2ed26cf539ae10655dd8a5a625ddf933ca1a42e4"
+    },
+    "childL": {
+      "hash": "0x058dba893a7f009e3a0dd16909f92ee903b1269e61bdb1a0907c8071296667e8"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x09ba87b2bd7facc2a4c986d82a5cb4001468843a60063c78a8d250b56f448377"
+    },
+    "childL": {
+      "hash": "0x1415da4682b468607145da71e58e90fa509deae39dce3dd4e7fcfc69b9642489"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_3",
+    "type": 9,
+    "typeHex": "0x09",
+    "childR": {
+      "hash": "0x2fc2e33fdb53f97cdfc63e66de1e6a497a98b8d109c4f88a1eea4881f0929526"
+    },
+    "childL": {
+      "hash": "0x18a4394701258dc34b8c9b8cd1766b03f74ad2eb8f759b059c39e70b5f7de6ac"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_2",
+    "type": 8,
+    "typeHex": "0x08",
+    "childR": {
+      "hash": "0x1509aaaacf0678c3da394ea3edc21dc3c48767a85544a8f435b69f87ddfbaf0a"
+    },
+    "childL": {
+      "hash": "0x20f8be15c4f2c53a83ef67963807fd9af0b32c40d825a915423a328f27542b39"
+    }
+  },
+  {
+    "typeName": "NodeTypeBranch_0",
+    "type": 6,
+    "typeHex": "0x06",
+    "childR": {
+      "hash": "0x21fb69ccdb00e6eaeaf7fc1e73630f39f846970b72ac801e396da0033fb0c247"
+    },
+    "childL": {
+      "hash": "0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb"
+    }
+  },
+  {
+    "typeName": "NodeTypeLeaf_New",
+    "type": 4,
+    "typeHex": "0x04",
+    "nodeKey": "0x20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf",
+    "preimageLenHex": "0x05",
+    "reversedCompressedFlagsHex": "0x05080000",
+    "valuePreimage": [
+      "0x0000000000000000000000000000000000000000000016ef0000000000000000",
+      "0x0000000000000000000000000000000000000000000001395d857ace5efb1c6e",
+      "0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51",
+      "0xe8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14",
+      "0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be"
+    ],
+    "keyPreimage": "0x5300000000000000000000000000000000000004000000000000000000000000",
+    "compressedFlags": [
+      false,
+      false,
+      false,
+      true,
+      false
+    ],
+    "hashPathBools": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  }
+]

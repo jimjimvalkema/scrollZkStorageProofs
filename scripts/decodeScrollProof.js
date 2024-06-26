@@ -62,10 +62,21 @@ export function  nodeFromBytes(b) {
             }
             n.nodeKey = ethers.hexlify(Zkt.NewHashFromBytes(b.slice(0,Zkt.HashByteLen)));
             n.hashPathBools =  BigInt(n.nodeKey).toString(2).split('').map(x => x === '1').reverse()
-            const mark = ethers.toNumber(b.slice(Zkt.HashByteLen , Zkt.HashByteLen+4).reverse())
-            n.mark = ethers.hexlify(b.slice(Zkt.HashByteLen , Zkt.HashByteLen+4).reverse())
+            
+            // decode compressedFlagsBytes
+            const compressedFlagsBytes = b.slice(Zkt.HashByteLen , Zkt.HashByteLen+4)
+            n.reversedCompressedFlagsHex = ethers.hexlify(compressedFlagsBytes)
+            const mark = ethers.toNumber(compressedFlagsBytes.reverse())
+            
+            //preimage length
             const preimageLen = mark & 255
+            n.preimageLenHex = ethers.toBeHex(preimageLen)
+
+            // compressed bool flags
             const compressedFlagsUnpadded = (mark >> 8).toString(2).split('').map(x => x === '1').reverse()
+
+        
+            //ethers.toBeArray(mark).reverse())
 
             // TODO not sure if they need to be padded since it doesnt happen in go. 
             // but it might have something todo with js numbers beind different?
@@ -230,8 +241,8 @@ export function isMagicBytes(nodeBytes) {
  * @param {ethers.BytesLike[]} _proof 
  * 
  * @typedef proofData
- * @property {ethers.BytesLike[]} hashPath from leaf sybling to root 
- * @property {number[]} nodeTypes from leaf sybling to root
+ * @property {ethers.BytesLike[]} hashPath from leaf-hash-sybling to root-child
+ * @property {number[]} nodeTypes from leaf-hash-sybling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
  * @returns {proofData} proofData
  */
@@ -284,7 +295,7 @@ export function verifyHashPath(hashPath, nodeTypes, leafNode ) {
         } else {
             //console.log(`left: ${currentHash}, right: ${hash},\nnodeType: ${nodeTypes[index]}\n`)
             currentHash = ethers.toBeHex(poseidon2([currentHash ,hash], nodeTypes[index]))
-        }        
+        }       
     }
     return currentHash
 }
@@ -334,13 +345,30 @@ async function main() {
     )
 
 
+    //----verify proof----------------------------
+
     //extract hashpath and verify
     const {hashPath, nodeTypes, leafNode} = getHashPathFromProof(storageProofMapping.storageProof[0].proof)
-    console.log({hashPath})
+    
+    // create storage key
+    const storageSlot = ethers.zeroPadValue("0x00", 32)
+    const storageValue  = ethers.zeroPadValue("0x4402c128c2337d7a6c4c867be68f7714a4e06429", 32)
+    const storageKeyPreImage = ethers.concat([storageValue,storageSlot])
+    const storageKey = ethers.keccak256(storageKeyPreImage)
+
+    // leafnode.keyPreimage = storageKey, because it still needs to be hashed by poseidon because poseidon is bn254 = 31 byte bute keccak = 32 byte
+    leafNode.keyPreimage = storageKey
+    assert(leafNode.keyPreimage === storageProofMapping.storageProof[0].key, 
+        "storageKey doesnt match"
+    )
+
+    // verify proof
     const rootHash = verifyHashPath(hashPath, nodeTypes, leafNode)
+    console.log(rootHash)
     assert(rootHash === storageProofMapping.storageHash, 
         "failed to verify hashPath"
     )
+
     // quick note about the leafNode obj
     // leafNode contains hashPathBools wich is made from the leafNode.nodekey
     // done at nodeFromBytes at: n.hashPathBools =  BigInt(n.nodeKey).toString(2).split('').map(x => x === '1').reverse()
@@ -352,6 +380,14 @@ async function main() {
     // ex in a mapping on er20 balances: 
     // const preImage = ethers.zeroPadValue(address,32)+ethers.zeroPadValue(slot,32).slice(2)
     // const storageKey = ethers.keccak256(preImage)
+
+
+    // Decode proof
+    
+    //filter magic bytes
+    const proof = storageProofMapping.accountProof.filter((nodeBytes)=>!isMagicBytes(nodeBytes))
+    const decodedProof = proof.map((nodeBytes)=>nodeFromBytes(nodeBytes))
+    await fs.writeFile('./scripts/out/decodedProof.json',JSON.stringify(decodedProof,null,2))
 }
 
 await main()
