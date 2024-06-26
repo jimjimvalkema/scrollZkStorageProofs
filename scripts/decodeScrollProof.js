@@ -18,7 +18,26 @@ if (typeof process === "object" &&
     }
 }
 
+
+
 // decoding--------------
+
+/**
+ * 
+ * @param {ethers.BytesLike} flagsHex 
+ * @param {number} preImageLen 
+ * @returns {bool[]} boolFlags (true = needs compression = hash it with hashSplitVal() )
+ */
+export function decodeCompressedPreImageBools(flagsHex,preImageLen) {
+    const flagsAsNumber = ethers.toNumber(ethers.toBeArray(flagsHex).reverse())
+    const flagBoolsUnpadded = flagsAsNumber.toString(2).split('').map(x => x === '1').reverse();
+
+    // TODO not sure if they need to be padded since it doesnt happen in go. 
+    // but it might have something todo with js numbers beind different?
+    // or simply because they are compressed so the zeros at the end are stripped.
+    const paddedArray = [...flagBoolsUnpadded, ...Array(preImageLen-flagBoolsUnpadded.length).fill(false)]
+    return paddedArray
+}
 
 // https://github.com/scroll-tech/Zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L131  
 // NewNodeFromBytes creates a new node by parsing the input []byte.
@@ -43,71 +62,65 @@ export function  nodeFromBytes(b) {
         case NodeTypes.NodeTypeBranch_1: 
         case NodeTypes.NodeTypeBranch_2: 
         case NodeTypes.NodeTypeBranch_3:
+            // sanity check
             if (b.length != 2*Zkt.HashByteLen) {
                 throw new Error(`ErrNodeBytesBadSize (b.length < ${2*Zkt.HashByteLen}, b.length=${b.length})`)
-                //return nil, ErrNodeBytesBadSize
             }
-            //Zkt.HashByteLen = 32
-            const childLHash  = b.slice(0,Zkt.HashByteLen)// Zkt.NewHashFromBytes(b.slice(0,Zkt.HashByteLen))
-            const childRHash = b.slice(Zkt.HashByteLen, Zkt.HashByteLen*2)// Zkt.NewHashFromBytes(b.slice(Zkt.HashByteLen, Zkt.HashByteLen*2))
+
+            // get children
+            const childLHash  = b.slice(0,Zkt.HashByteLen)
+            const childRHash = b.slice(Zkt.HashByteLen, Zkt.HashByteLen*2)
             n.childL = new ZkTrieNode({hash:ethers.hexlify(childLHash)})
             n.childR = new ZkTrieNode({hash:ethers.hexlify(childRHash)})
             break
 
         case NodeTypes.NodeTypeLeaf:
         case NodeTypes.NodeTypeLeaf_New:
+            // sanity check
             if (b.length < Zkt.HashByteLen+4) {
                 throw new Error("ErrNodeBytesBadSize")
-                //return nil, ErrNodeBytesBadSize
             }
+
+            // nodeKey and hashpath
             n.nodeKey = ethers.hexlify(Zkt.NewHashFromBytes(b.slice(0,Zkt.HashByteLen)));
             n.hashPathBools =  BigInt(n.nodeKey).toString(2).split('').map(x => x === '1').reverse()
             
-            // decode compressedFlagsBytes
-            const compressedFlagsBytes = b.slice(Zkt.HashByteLen , Zkt.HashByteLen+4)
+            // get compressed preimage flags
             n.reversedCompressedFlagsHex = ethers.hexlify(b.slice(Zkt.HashByteLen+1, Zkt.HashByteLen+4))
-            const mark = ethers.toNumber(compressedFlagsBytes.reverse())
-            
-            //preimage length
-            const preimageLen = mark & 255
+            // preimage length
             n.preimageLenHex = ethers.hexlify(b.slice(Zkt.HashByteLen , Zkt.HashByteLen+1))
+            const preimageLen = ethers.toNumber(n.preimageLenHex)
+            // compressedFlags
+            n.compressedFlags = decodeCompressedPreImageBools(n.reversedCompressedFlagsHex,preimageLen)
 
-            // compressed bool flags
-            const compressedFlagsUnpadded = (mark >> 8).toString(2).split('').map(x => x === '1').reverse()
+            // value preimage array
 
-        
-            //ethers.toBeArray(mark).reverse())
-
-            // TODO not sure if they need to be padded since it doesnt happen in go. 
-            // but it might have something todo with js numbers beind different?
-            // or simply because they are compressed so the zeros at the end are stripped.
-            n.compressedFlags = [...compressedFlagsUnpadded, ...Array(preimageLen-compressedFlagsUnpadded.length).fill(false)]
-            let _valuePreimage = Array(preimageLen).fill(new Uint8Array(Array(32).fill(0)))//make([]Zkt.Byte32, preimageLen)
+            let valuePreimage = []
             let curPos = Zkt.HashByteLen + 4
+            // sanity check
             if (b.length < curPos+preimageLen*32+1) {
                 throw new Error("ErrNodeBytesBadSize")
                 //return nil, ErrNodeBytesBadSize
             }
+            // extract data
             for (let i = 0; i < preimageLen; i++) {
-                //copy(n.ValuePreimage[i][:], b[i*32+curPos:(i+1)*32+curPos])
-                _valuePreimage[i] =  b.slice(Number(i*32+curPos), Number((i+1)*32+curPos))
-                
+                const preImage = b.slice(Number(i*32+curPos), Number((i+1)*32+curPos))
+                valuePreimage.push(preImage)
             }
-            n.valuePreimage = _valuePreimage.map((value)=>ethers.hexlify(value))
+            n.valuePreimage = valuePreimage.map((value)=>ethers.hexlify(value))
+            
+            // nodeKey PreImage
             curPos += preimageLen * 32
             const preImageSize = b[curPos]
             curPos += 1
             if (preImageSize !== 0) {
                 if (b.length < curPos+preImageSize) {
                     throw new Error("ErrNodeBytesBadSize")
-                    //return nil, ErrNodeBytesBadSize
                 }
-                //Zkt.Byte32 = uint8 with 32 zeros
-                //_keyPreimage = structuredClone(Zkt.Byte32)
-                //copy(n.KeyPreimage[:], b[curPos:curPos+preImageSize])
                 n.keyPreimage =  ethers.hexlify(b.slice(Number(curPos),Number(curPos+preImageSize)))
             }
             break
+
         case NodeTypes.NodeTypeEmpty:
         case NodeTypes.NodeTypeEmpty_New:
             break
