@@ -94,7 +94,6 @@ export function  nodeFromBytes(b) {
             n.compressedFlags = decodeCompressedPreImageBools(n.reversedCompressedFlagsHex,preimageLen)
 
             // value preimage array
-
             let valuePreimage = []
             let curPos = Zkt.HashByteLen + 4
             // sanity check
@@ -126,7 +125,6 @@ export function  nodeFromBytes(b) {
             break
         default:
             throw new Error("ErrNodeBytesBadSize")
-            //return nil, ErrInvalidNodeFound
 	}
 	return n
 }
@@ -319,47 +317,7 @@ if (!windowIsEmpty) {
     window.verifyProof = verifyProof;
 }
 
-async function main() {
-    //HashFixedWithDomain([]*big.Int{b1, b2}, big.NewInt(256))
-    //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L99
-    const domain = 256
-    const preimage = [1,2]
-    const hash = ethers.toBeHex(poseidon2(preimage,domain))
-    assert(hash === "0x05390df727dcce2ddb8faa3acb4798ad4e95b74de05e5cc7e40496658913ae85")
-
-    const node = new ZkTrieNode({type:0x06})
-    node.childL = new ZkTrieNode({hash:"0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"})
-    node.childR = new ZkTrieNode({hash:"0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"})
-
-    node.hash = ethers.toBeHex(poseidon2([node.childL.hash, node.childR.hash], node.type))
-    assert(node.hash === "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca", 
-        "Node hash doesnt match"
-    )
-
-    const nodeBytesStorageLeaf = ethers.toBeArray("0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff")
-    const storageLeaf = nodeFromBytes(nodeBytesStorageLeaf)
-    hashNode(storageLeaf);
-    assert(storageLeaf.hash === "0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe",
-        "storageLeafHash doesnt match"
-    )
-
-    const nodeBytesAccountLeaf = ethers.toBeArray("0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000")
-    const accountLeaf = nodeFromBytes(nodeBytesAccountLeaf)
-    hashNode(accountLeaf);
-    assert(accountLeaf.hash === "0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb",
-        "accountLeafHash doesnt match"
-    )
-
-    const nodeBytesBranch = ethers.toBeArray("0x090cc290e414db319dd2e2e8d43c0058c425b26221b32cc36d1d3941b34d396e941590f4aaba59ff46a09d7a6a152cbf27280c2fbaa4bb94aa3eefab3bbd7d6e19")
-    const branch = nodeFromBytes(nodeBytesBranch)
-    hashNode(branch);
-    assert(branch.hash === "0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51",
-        "branchNodeHash doesnt match"
-    )
-
-
-    //----verify proof----------------------------
-
+async function saveStorageProofHashPathSToJson() {
     //extract hashpath and verify
     const {hashPath, nodeTypes, leafNode} = getHashPathFromProof(storageProofMapping.storageProof[0].proof)
     
@@ -401,6 +359,59 @@ async function main() {
     const proof = storageProofMapping.accountProof.filter((nodeBytes)=>!isMagicBytes(nodeBytes))
     const decodedProof = proof.map((nodeBytes)=>nodeFromBytes(nodeBytes))
     await fs.writeFile('./scripts/out/decodedProof.json',JSON.stringify(decodedProof,null,2))
+    //await fs.writeFile('./scripts/out/hashPathStorageProof.json',JSON.stringify({hashPath,nodeTypes,leafNode},null,0))
+}
+
+async function main() {
+    //HashFixedWithDomain([]*big.Int{b1, b2}, big.NewInt(256))
+    //https://github.com/scroll-tech/go-ethereum/blob/e2becce6a1a48f5680c105b03b37a646e5740167/crypto/poseidon/poseidon_test.go#L99
+    const domain = 256
+    const preimage = [1,2]
+    const hash = ethers.toBeHex(poseidon2(preimage,domain))
+    assert(hash === "0x05390df727dcce2ddb8faa3acb4798ad4e95b74de05e5cc7e40496658913ae85")
+
+    const node = new ZkTrieNode({type:0x06})
+    node.childL = new ZkTrieNode({hash:"0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe"})
+    node.childR = new ZkTrieNode({hash:"0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040"})
+
+    node.hash = ethers.toBeHex(poseidon2([node.childL.hash, node.childR.hash], node.type))
+    assert(node.hash === "0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca", 
+        "Node hash doesnt match"
+    )
+
+    const nodeBytesStorageLeaf = ethers.toBeArray("0x04108e2f19fe8f4794f6bf4f3f21fbc2d6330e6043e97a4c660d9618c7c3958e0a0101000000000000000000000000000000000000000000000000000000900661d8af4c8620dd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff")
+    const storageLeaf = nodeFromBytes(nodeBytesStorageLeaf)
+    hashNode(storageLeaf);
+    assert(storageLeaf.hash === "0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe",
+        "storageLeafHash doesnt match"
+    )
+
+    const nodeBytesAccountLeaf = ethers.toBeArray("0x0420e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf050800000000000000000000000000000000000000000000000016ef00000000000000000000000000000000000000000000000000000000000001395d857ace5efb1c6e098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be205300000000000000000000000000000000000004000000000000000000000000")
+    const accountLeaf = nodeFromBytes(nodeBytesAccountLeaf)
+    hashNode(accountLeaf);
+    assert(accountLeaf.hash === "0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb",
+        "accountLeafHash doesnt match"
+    )
+
+    const nodeBytesBranch = ethers.toBeArray("0x090cc290e414db319dd2e2e8d43c0058c425b26221b32cc36d1d3941b34d396e941590f4aaba59ff46a09d7a6a152cbf27280c2fbaa4bb94aa3eefab3bbd7d6e19")
+    const branch = nodeFromBytes(nodeBytesBranch)
+    hashNode(branch);
+    assert(branch.hash === "0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51",
+        "branchNodeHash doesnt match"
+    )
+
+
+    //TODO clean up and maybe use proper test framework
+    await saveStorageProofHashPathSToJson()
+
+    const {hashPath, nodeTypes, leafNode} = getHashPathFromProof(storageProofMapping.accountProof)
+    hashNode(leafNode)
+
+    //await fs.writeFile('./scripts/out/hashPathAccountProof.json',JSON.stringify({hashPath,nodeTypes,leafNode},null,0))
+
+    //state root = 0x166065fc76a540ec1ec944e4a8e409c8d9615b77621504efff154e0132f8e8f8
+    // b = await provider.getBlock(Number(0x62be1f))
+    // b.stateRoot
 }
 
 await main()
