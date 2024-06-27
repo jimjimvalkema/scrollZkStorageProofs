@@ -5,6 +5,8 @@ use dep::std::hash::poseidon::bn254::perm;
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/hash.go#L16
 global HASH_DOMAIN_ELEMS_BASE:Field = 256; // TODO maybe change to u8 ??
 global HASH_DOMAIN_BYTE32:Field     = 2 * HASH_DOMAIN_ELEMS_BASE;
+global ACCOUNT_LEAF_VALUE_PREIMAGE_LEN =  5;
+global HASH_DOMAIN_ACCOUNT_LEAF:Field = 5 * HASH_DOMAIN_ELEMS_BASE;
 
 pub fn split_byte32_to_fields(bytes: [u8;32]) -> [Field; 2] {
     let mut firstHalf: Field = 0x0;
@@ -37,6 +39,7 @@ pub fn poseidon2_domain(domain: Field, input: [Field; 2]) -> Field {
 // Returns the merkle root of the tree from the provided leaf, its hashpath, domains, using a poseidon2 with the domain argument
 pub fn compute_merkle_root<N>(leaf_hash: Field, node_key: Field, hash_path: [Field; N], node_types: [Field; N]) -> Field {
     let n = hash_path.len();
+    // TODO  node_key.to_be_bits can be done outside of the circuit. see if thats better
     let node_key_bits = node_key.to_be_bits(n as u32);
     let mut current = leaf_hash;
     for i in 0..n {
@@ -54,34 +57,72 @@ pub fn compute_merkle_root<N>(leaf_hash: Field, node_key: Field, hash_path: [Fie
 
 
 
-// https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L92
-// Node is the struct that represents a node in the MT. The node should not be
-// modified after creation because the cached key won't be updated.
-struct Node {
-    // Type is the type of node in the tree.
-    Type: Field,                // NodeType u8 //type NodeType byte
+pub fn hash_storage_leaf_node_key(key: [u8; 32], slot: [u8; 32]) -> Field {
+    // node key preImage Hashing. NodeKeyPreImage = storageProof.key
+    //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
+    let storage_key_preImg: [u8; 64] = key.as_slice().append(slot.as_slice()).as_array();
+    let storage_key_bytes = std::hash::keccak256(storage_key_preImg,64);
 
-    // ChildL is the node hash of the left child of a parent node.
-    ChildL: Field,              // *zkt.Hash
-    // NodeKey is the node's key stored in a leaf node.
-    ChildR: Field,              // *zkt.Hash
+    // node_key
+    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L107
+    let storage_key_split:[Field;2] = split_byte32_to_fields(storage_key_bytes);
+    poseidon2_domain(HASH_DOMAIN_BYTE32, storage_key_split)
+}
 
-    // NodeKey is the node's key stored in a leaf node.
-    NodeKey: Field,             // *zkt.Hash
+pub fn hash_storage_leaf(node_key: Field, value_preimage: [u8; 32], leaf_node_type: Field) -> Field {
+    //Value Hash
+    let value_preImg_split:[Field;2] = split_byte32_to_fields(value_preimage);
+    let value_hash = poseidon2_domain(HASH_DOMAIN_BYTE32, value_preImg_split);
+    
+    //node_hash
+    poseidon2_domain(leaf_node_type,[node_key, value_hash])
+}
 
-    // ValuePreimage can store at most 256 byte32 as fields (represnted by BIG-ENDIAN integer)
-	// and the first 24 can be compressed (each bytes32 consider as 2 fields), in hashing the compressed
-	// elemments would be calculated first
-    ValuePreimage: [[u8;32]],  // []zkt.Byte32 
+pub fn hash_account_leaf(
+    node_key: Field,
+    nonce_codesize_0: Field, 
+    balance: Field, 
+    storageRoot: Field,  
+    compressedKeccakCodeHash: Field,
+    poseidonCodeHash: Field,
+    node_type: Field
+    ) -> Field {
+    // docs is wrong here its domain is 512
+    // https://github.com/scroll-tech/scroll-documentation/issues/281
+    // https://docs.scroll.io/en/technology/sequencer/zktrie/#ethereum-account-leaf-node
 
-    // CompressedFlags use each bit for indicating the compressed flag for the first 24 fields
-    CompressedFlags: u32,       // uint32
-    // nodeHash is the cache of the hash of the node to avoid recalculating
-    nodeHash: Field,            // *zkt.Hash
-    // value_hash is the cache of the hash of valuePreimage to avoid recalculating, only valid for leaf node
-    value_hash: Field,           // *zkt.Hash
-    // KeyPreimage is the original key value that derives the NodeKey, kept here only for proof
-    KeyPreimage: [u8;32]          // *zkt.Byte32
+
+    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L10
+    // https://docs.scroll.io/en/technology/sequencer/zktrie/#leaf-node
+    // domain := 256 * 5  // 5 elements to compute the valueHash
+    //             value_hash
+    //                 /\
+    //                 |
+    // h{domain}(_____, _____) 
+    //             /        \
+    //            /          \
+    // poseidonCodeHash    h{domain}(_____, _____) 
+    //                               /          \
+    //                              /            \
+    //                             /              \
+    // h{domain}(nonce||codesize||0, balance)  h{domain}(storageRoot, compressedKeccakCodeHash)
+    let value_hash: Field = 
+        poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
+            poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
+
+                poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [nonce_codesize_0, balance]),
+
+                poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
+                    storageRoot,
+                    compressedKeccakCodeHash
+                    ])
+            ]),
+
+            (poseidonCodeHash)
+        ]);
+        
+    poseidon2_domain(node_type, [node_key, value_hash])
+
 }
 
 #[test]
@@ -139,12 +180,12 @@ fn test_storage_leaf_hash() {
     // value = ethers.toBeArray("0x4402c128c2337d7a6c4c867be68f7714a4e06429")
     // zeros = Array(32 - value.length).fill(0);
     // [...zeros, ...value]
-    let key: [u8] = [0,0,0,0,0,0,0,0,0,0,0,0,68,2,193,40,194,51,125,122,108,76,134,123,230,143,119,20,164,224,100,41]; 
+    let key: [u8; 32] = [0,0,0,0,0,0,0,0,0,0,0,0,68,2,193,40,194,51,125,122,108,76,134,123,230,143,119,20,164,224,100,41]; 
 
     // value = ethers.toBeArray("0x00")
     // zeros = Array(32 - value.length).fill(0);
     // [...zeros, ...value]
-    let slot: [u8] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+    let slot: [u8; 32] = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 
 
     // value_preimage_bytes = balance of the address in the lookup (0x4402c128c2337d7a6c4c867be68f7714a4e06429)
@@ -157,27 +198,8 @@ fn test_storage_leaf_hash() {
 
 
     //-----------------hashing----------------------------
-
-    // storage_key
-    // node key preImage Hashing. NodeKeyPreImage = storageProof.key
-    //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
-    let storage_key_preImg: [u8; 64] = key.append(slot).as_array();
-    let storage_key_bytes = std::hash::keccak256(storage_key_preImg,64);
-
-    // node_key
-    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L107
-    let storage_key_split:[Field;2] = split_byte32_to_fields(storage_key_bytes);
-    let node_key = poseidon2_domain(512, storage_key_split);
-
-    //Value Hash
-    let value_preImg_split:[Field;2] = split_byte32_to_fields(value_preimage_bytes[0]);
-    let value_hash = poseidon2_domain(512, value_preImg_split);
-    
-    //node_hash
-    let node_hash = poseidon2_domain(leaf_node_type,[node_key, value_hash]);
-
-    //--------------------------------------------------------------------
-
+    let node_key: Field = hash_storage_leaf_node_key(key, slot);
+    let node_hash = hash_storage_leaf(node_key,value_preimage_bytes[0],leaf_node_type);
     assert(node_hash == 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe,  "node_hash doesnt match");
 
 }
@@ -209,52 +231,21 @@ fn test_account_leaf_hash() {
     // [...value, ...zeros]
     // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L107
     let key_pre_image = [83,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0];
-    let node_key = poseidon2_domain(512, split_byte32_to_fields(key_pre_image));
-    // docs is wrong here its domain is 512
-    // https://github.com/scroll-tech/scroll-documentation/issues/281
-    // https://docs.scroll.io/en/technology/sequencer/zktrie/#ethereum-account-leaf-node
-    assert(node_key == 0x20e9fb498ff9c35246d527da24aa1710d2cc9b055ecf9a95a8a2a11d3d836cdf, "node key doesn match");
     let node_type = 0x04;
 
-    // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L10
-    // https://docs.scroll.io/en/technology/sequencer/zktrie/#leaf-node
-    // domain := 256 * 5  // 5 elements to compute the valueHash
-    // valueHash :=
-    //     h{domain}(
-    //         h{domain}(
-    //             h{domain}(nonce||codesize||0, balance),
-    //             h{domain}(
-    //                 storageRoot,
-    //                 compressedKeccakCodeHash,
-    //             ),
-    //         ),
-    //         poseidonCodeHash,
-    //     )
 
     //0xe8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14.to_be_bytes(32).as_array(); <- doesnt work becuase fields are smaller then 32 byte
     let keccakCodeHash: [u8;32] =  [232,196,7,51,81,194,107,152,49,193,229,175,21,59,155,228,113,58,74,249,237,253,243,43,88,7,123,115,94,18,15,20];
     let nonce_codesize_0: Field = 0x0000000000000000000000000000000000000000000016ef0000000000000000; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[0]));
     let balance: Field = 0x0000000000000000000000000000000000000000000001395d857ace5efb1c6e; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[1]));
     let storageRoot: Field = 0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[2]));
-    let compressedKeccakCodeHash: Field = poseidon2_domain(512,split_byte32_to_fields(keccakCodeHash));
     let poseidonCodeHash: Field = 0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[4]));
-    let domain:Field = 256 * 5;
-    let value_hash: Field = 
-        poseidon2_domain(domain, [
-            poseidon2_domain(domain, [
 
-                poseidon2_domain(domain, [nonce_codesize_0, balance]),
+    // pre prosses inputs
+    let compressedKeccakCodeHash: Field = poseidon2_domain(HASH_DOMAIN_BYTE32,split_byte32_to_fields(keccakCodeHash));
 
-                poseidon2_domain(domain, [
-                    storageRoot,
-                    compressedKeccakCodeHash
-                    ])
-            ]),
-
-            (poseidonCodeHash)
-        ]);
-        
-    let node_hash = poseidon2_domain(node_type, [node_key, value_hash]);
+    let node_key = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(key_pre_image));
+    let node_hash = hash_account_leaf(node_key,nonce_codesize_0, balance, storageRoot,  compressedKeccakCodeHash,poseidonCodeHash,node_type);
     assert(node_hash == 0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb,"node_hash doesnt match" );
 }
 
