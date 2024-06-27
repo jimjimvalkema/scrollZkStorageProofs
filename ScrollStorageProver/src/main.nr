@@ -8,7 +8,28 @@ global HASH_DOMAIN_BYTE32:Field     = 2 * HASH_DOMAIN_ELEMS_BASE;
 global ACCOUNT_LEAF_VALUE_PREIMAGE_LEN =  5;
 global HASH_DOMAIN_ACCOUNT_LEAF:Field = 5 * HASH_DOMAIN_ELEMS_BASE;
 
-pub fn split_byte32_to_fields(bytes: [u8;32]) -> [Field; 2] {
+struct Hash_path_proof<N> {
+        hash_path: [Field;N],
+        node_types: [Field;N],
+        leaf_type: Field
+    }
+
+struct Hash_paths_state_proof<S,A> {
+    storage_proof: Hash_path_proof<S>,
+    account_proof: Hash_path_proof<A>
+}
+
+
+struct Account_preimage {
+    nonce_codesize_0: Field,
+    balance: Field,
+    storageRoot: Field,
+    compressed_keccak_code_hash: Field,
+    poseidon_code_hash: Field
+    
+}
+
+fn split_byte32_to_fields(bytes: [u8;32]) -> [Field; 2] {
     let mut firstHalf: Field = 0x0;
     let mut lastHalf: Field = 0x0;
 
@@ -57,7 +78,7 @@ pub fn compute_merkle_root<N>(leaf_hash: Field, node_key: Field, hash_path: [Fie
 
 
 
-pub fn hash_storage_leaf_node_key(key: [u8; 32], slot: [u8; 32]) -> Field {
+pub fn hash_node_key_from_mapping(key: [u8; 32], slot: [u8; 32]) -> Field {
     // node key preImage Hashing. NodeKeyPreImage = storageProof.key
     //0xdd4d389a3e50efed8ae09dd0fdc3adaf1beae58fd2204e19758755085d876cff
     let storage_key_preImg: [u8; 64] = key.as_slice().append(slot.as_slice()).as_array();
@@ -83,8 +104,8 @@ pub fn hash_account_leaf(
     nonce_codesize_0: Field, 
     balance: Field, 
     storageRoot: Field,  
-    compressedKeccakCodeHash: Field,
-    poseidonCodeHash: Field,
+    compressed_keccak_code_hash: Field,
+    poseidon_code_hash: Field,
     node_type: Field
     ) -> Field {
     // docs is wrong here its domain is 512
@@ -101,11 +122,11 @@ pub fn hash_account_leaf(
     // h{domain}(_____, _____) 
     //             /        \
     //            /          \
-    // poseidonCodeHash    h{domain}(_____, _____) 
+    // poseidon_code_hash    h{domain}(_____, _____) 
     //                               /          \
     //                              /            \
     //                             /              \
-    // h{domain}(nonce||codesize||0, balance)  h{domain}(storageRoot, compressedKeccakCodeHash)
+    // h{domain}(nonce||codesize||0, balance)  h{domain}(storageRoot, compressed_keccak_code_hash)
     let value_hash: Field = 
         poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
             poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
@@ -114,11 +135,11 @@ pub fn hash_account_leaf(
 
                 poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
                     storageRoot,
-                    compressedKeccakCodeHash
+                    compressed_keccak_code_hash
                     ])
             ]),
 
-            (poseidonCodeHash)
+            (poseidon_code_hash)
         ]);
         
     poseidon2_domain(node_type, [node_key, value_hash])
@@ -159,6 +180,37 @@ fn test_node_hash() {
     assert(node_hash == 0x084a2eb35e4cfd22b840cebde52db3567f0d46b99f69378a6d36361f367153ca, "node hash doesnt match");
 }
 
+// A = account proof hash_path lenght
+// S = storage proof hash_path lenght
+
+// ex mapping of balances erc20
+// key = user address
+// slot = storage slot where the _balances map is stored
+// value = user balance (padded zeros at start)
+// padded_contract = the contract address but with zeros at the start *left*
+// hash_paths and account_preimage is extra information needed to compute the proof
+pub fn storage_proof_on_mapping<A,S>(key: [u8;32], slot: [u8; 32], value:  [u8; 32], padded_contract: [u8;32], hash_paths: Hash_paths_state_proof<A,S>, account_preimage: Account_preimage) -> Field {
+    // get storage_root from storage proof
+    let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
+    let storage_leaf_hash = hash_storage_leaf(storage_node_key,value,hash_paths.storage_proof.leaf_type);
+    let storage_root = compute_merkle_root(storage_leaf_hash, storage_node_key, hash_paths.storage_proof.hash_path,  hash_paths.storage_proof.node_types);
+
+    // get state root from account proof using storage_root as input
+    let account_node_key: Field = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(padded_contract));
+    let account_leaf_hash = hash_account_leaf(
+        account_node_key, // contains hashed contract address
+        account_preimage.nonce_codesize_0,
+        account_preimage.balance,
+        storage_root, // input from storage proof
+        account_preimage.compressed_keccak_code_hash,
+        account_preimage.poseidon_code_hash,
+        hash_paths.account_proof.leaf_type
+        );
+    let state_root = compute_merkle_root(account_leaf_hash, account_node_key, hash_paths.account_proof.hash_path,  hash_paths.account_proof.node_types);
+
+
+    state_root
+}
 
 #[test]
 fn test_storage_leaf_hash() {    
@@ -198,7 +250,7 @@ fn test_storage_leaf_hash() {
 
 
     //-----------------hashing----------------------------
-    let node_key: Field = hash_storage_leaf_node_key(key, slot);
+    let node_key: Field = hash_node_key_from_mapping(key, slot);
     let node_hash = hash_storage_leaf(node_key,value_preimage_bytes[0],leaf_node_type);
     assert(node_hash == 0x11d073e461847e567d35ce97d013e9aaf7d7915ff548fb896b0e91e9c8aefbbe,  "node_hash doesnt match");
 
@@ -219,7 +271,7 @@ fn test_account_leaf_hash() {
     // 0000000000000000000000000000000000000000000001395d857ace5efb1c6e // balance padded 32 byte
     // 098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51 // storageRoot
     // e8c4073351c26b9831c1e5af153b9be4713a4af9edfdf32b58077b735e120f14 // keccakCodeHash // 0x0b76dac2b0a40ec033204a8924a316feab1261917f1807c68dca97310bf17edb
-    // 136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be // poseidonCodeHash
+    // 136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be // poseidon_code_hash
     // 20                                                               // preImageSize = 32 bit     1  byte 
     // 5300000000000000000000000000000000000004000000000000000000000000 // contract address padded left 32 byte                                                           // means key preImg not availible
     
@@ -239,13 +291,13 @@ fn test_account_leaf_hash() {
     let nonce_codesize_0: Field = 0x0000000000000000000000000000000000000000000016ef0000000000000000; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[0]));
     let balance: Field = 0x0000000000000000000000000000000000000000000001395d857ace5efb1c6e; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[1]));
     let storageRoot: Field = 0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[2]));
-    let poseidonCodeHash: Field = 0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[4]));
+    let poseidon_code_hash: Field = 0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be; //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[4]));
 
     // pre prosses inputs
-    let compressedKeccakCodeHash: Field = poseidon2_domain(HASH_DOMAIN_BYTE32,split_byte32_to_fields(keccakCodeHash));
+    let compressed_keccak_code_hash: Field = poseidon2_domain(HASH_DOMAIN_BYTE32,split_byte32_to_fields(keccakCodeHash));
 
     let node_key = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(key_pre_image));
-    let node_hash = hash_account_leaf(node_key,nonce_codesize_0, balance, storageRoot,  compressedKeccakCodeHash,poseidonCodeHash,node_type);
+    let node_hash = hash_account_leaf(node_key,nonce_codesize_0, balance, storageRoot,  compressed_keccak_code_hash,poseidon_code_hash,node_type);
     assert(node_hash == 0x1773e4a9875437b5692acfc4caf46b4db0666b1d98af4dd58fe2d03b6e20f4bb,"node_hash doesnt match" );
 }
 
@@ -270,5 +322,43 @@ fn test_compute_merkle_root_account_proof() {
     
     let computed_root:Field = compute_merkle_root(leaf_hash, node_key, hash_path, node_types);
     let state_root:Field = 0x166065fc76a540ec1ec944e4a8e409c8d9615b77621504efff154e0132f8e8f8;
+    assert(computed_root == state_root, "computed_root doesnt match storage root");
+}
+
+#[test]
+fn test_storage_proof_on_mapping() {
+
+    // input
+    let user_address: [u8;32]       = [0,0,0,0,0,0,0,0,0,0,0,0,68,2,193,40,194,51,125,122,108,76,134,123,230,143,119,20,164,224,100,41];    // 0x4402c128c2337d7a6c4c867be68f7714a4e06429
+    let slot: [u8; 32]              = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];                                    // slot = 0
+    let user_balance:  [u8; 32]     = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,144,6,97,216,175,76,134];                           // 0.040539413963295878
+    let padded_contract: [u8;32]    = [83,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0];                                    // 0x5300000000000000000000000000000000000004 WETH on scroll (is a system contract thats why address looks weird)
+
+    // proof data
+    let hash_paths = Hash_paths_state_proof {
+        storage_proof: Hash_path_proof {
+            hash_path:  [0x082fd83e1176c02bba56005b3ba042af371971b4716f243642fca2a35a975040,0x0000000000000000000000000000000000000000000000000000000000000000,0x0000000000000000000000000000000000000000000000000000000000000000,0x1dbb1b961bc57d29f8b809aea22725896f8fe0054b90fb1a0f20ef8ce6b348e5,0x2cbc648029cf765385f6a17be45bbe74628c15d4c08f8d5e3f4491d94ae177e3,0x1eaff424e9893b368db781d66aee078fa2e932a269c009b6951586a5063bb3fb,0x2fde6d7e33e7c0dbf7448021a23e1b9f861de9906be91401e32987c506fa0a38,0x2acc21883e7d177c905ca2431c11fed214eebeaf95bb5bb3ff18b6988bcd2f6c,0x064fe3c43019c279d94c50619936c695080152678ca4448656e54790b124ba10,0x0e3a034343d14f2e9fa79bc58f3c5e83212ab34ad4216494ce5d0ba69a24129f,0x1e01222677655045108f8adabfb6b5aae23d15b6e8b865b885d22677930b1327,0x279df33aa48b973b0c4711959ba4032c91115266da7d46aa1eef4d5b4df50529,0x2c516cd8168873553bf5613fa108cf158db9f77356a14e5999a089bcb30bcc0d,0x169c51364a1a5d0d2fdf569654fdbb01f0fc57ce96f51224ace6c2b122a278f2,0x17ddf467aa6ad4be84637262c8bde743f303851b55a90cecaeb62f20949dd26a,0x0d0f3ad20d01ebbc06dddc8a4a4969088c6306a59e0941d09c608b86cddedf50,0x2704a07ac2ab2eef36c79b8e22eb2ebc49dfe7417500b04aac96b6f3babb802c,0x1dd281308230419c26bcd28b8ed40c561922c8c881e552f76c6575d16863e5ec,0x13a303bbb1e8cf20f48dd19ae218fda161c83fa10a7915615f0cc7028be36e4d,0x1590f4aaba59ff46a09d7a6a152cbf27280c2fbaa4bb94aa3eefab3bbd7d6e19],
+            node_types: [6,7,8,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9],
+            leaf_type:  0x04,
+        },
+        account_proof: Hash_path_proof {
+            hash_path:  [0x21fb69ccdb00e6eaeaf7fc1e73630f39f846970b72ac801e396da0033fb0c247,0x1509aaaacf0678c3da394ea3edc21dc3c48767a85544a8f435b69f87ddfbaf0a,0x2fc2e33fdb53f97cdfc63e66de1e6a497a98b8d109c4f88a1eea4881f0929526,0x09ba87b2bd7facc2a4c986d82a5cb4001468843a60063c78a8d250b56f448377,0x160bcff072cec6d5f61ed69d2ed26cf539ae10655dd8a5a625ddf933ca1a42e4,0x0f7f936cd304525d85e1b33fedc1f62b9bfd87030ffb7b843eacd445fc4aea7f,0x242415f663834078570a91f27e9a1bcee2d0c0a0936c1010fe0d92c8ea935a18,0x2c342e07f95e2472f32bf2637467f30a2343e3f4fc702ac088c7e196d4de708b,0x134c58331016b26e8e3eedd0955eb8a54dab8e290ea9b957f4713cc79be917a6,0x0258b45271d86dfd4706c256753a684f08a05d258a5fff6750b0e2fd32e1cf4d,0x13c97981b6360a26dbe4f4694175d1d9a0e248ba734bf9e9e4d57df3c53f2437,0x1c41fc3e5ece5c5d2ccb67595d3a89fb39d43b32827f0464dd6aeb8f1a9ca701,0x0466fc11eb066d337c51cf870f18084e95000e890245833bcb16a134a22c4723,0x149966c5c9cb6966c568fb099c5385b0b4831be1f29f3592833749fb15bf405d,0x2309d7599612bb43f1bb17e40747eef76c254d444daaae064052edd1972f4440,0x20641a9afc11694b5a8c8acec09dc9f70a75fbc7914d1f5e9a41f15cd00665ae,0x2f98ca34e139c1057f0a30611814d34de4d80813497d7c9c863e697c95aa3cb5,0x0dc44be05703a33acb8c11756ad727c227fd086c46469a26a7a9d6750f439616,0x269ae40a8f39ab073983fb6fe0e384a865bcc21ec6e09e307fcc8692a6151ebc,0x0e8692bbc1d31269263cef16273badc1aebc37f1047bcd03c117a82c5b878610,0x2ad53eebc0132ed6cefb20cb9bb3379d8e7aa0b14d83663dc508aa16607a5efb,0x0e22fafbcae714df93561f55ce0ec547c98ae23e0f58a0e4cd5fe157edca1c4f,0x1a405dfd689829d259c07d7962144343a2052edd73d8d805958c107d31d54860],
+            node_types: [6,8,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9],
+            leaf_type:  0x04,
+        }
+    };
+    let keccakCodeHash: [u8;32] =  [232,196,7,51,81,194,107,152,49,193,229,175,21,59,155,228,113,58,74,249,237,253,243,43,88,7,123,115,94,18,15,20];
+    let account_preimage = Account_preimage {
+        nonce_codesize_0:  0x0000000000000000000000000000000000000000000016ef0000000000000000,  //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[0]));
+        balance:0x0000000000000000000000000000000000000000000001395d857ace5efb1c6e,             //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[1]));
+        storageRoot:0x098b50a409452b9e258d144cfe5f87e70c68cab71945db8f596b6447c811de51,         //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[2]));
+        compressed_keccak_code_hash: poseidon2_domain(HASH_DOMAIN_BYTE32,split_byte32_to_fields(keccakCodeHash)),
+        poseidon_code_hash: 0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be, //poseidon2_domain(512,split_byte32_to_fields(node_value_preimage[4]));
+        
+    };
+
+    // proving
+    let computed_root = storage_proof_on_mapping(user_address, slot, user_balance, padded_contract, hash_paths, account_preimage);
+    let state_root = 0x166065fc76a540ec1ec944e4a8e409c8d9615b77621504efff154e0132f8e8f8;
     assert(computed_root == state_root, "computed_root doesnt match storage root");
 }
