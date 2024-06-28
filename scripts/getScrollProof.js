@@ -255,22 +255,23 @@ async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
     const provider = new ethers.JsonRpcProvider(PROVIDERURL)
     const blockHash = (await provider.getBlock(blockNumber)).hash
     const block = await provider.send('eth_getBlockByHash', [blockHash, false])
+    //https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
     const headerData = [
-        block.parentHash,  //common.Hash    `json:"parentHash"       gencodec:"required"`
-        block.sha3Uncles,   //common.Hash    `json:"sha3Uncles"       gencodec:"required"`
-        block.miner,    //common.Address `json:"miner"`
-        block.stateRoot,        //common.Hash    `json:"stateRoot"        gencodec:"required"`
-        block.transactionsRoot,      //common.Hash    `json:"transactionsRoot" gencodec:"required"`
-        block.receiptsRoot, // ReceiptHash //common.Hash    `json:"receiptsRoot"     gencodec:"required"`
-        block.logsBloom, // Bloom       //Bloom          `json:"logsBloom"        gencodec:"required"`
-        block.difficulty, // Difficulty  //*big.Int       `json:"difficulty"       gencodec:"required"`
-        block.number,// Number      //*big.Int       `json:"number"           gencodec:"required"`
-        block.gasLimit,// GasLimit    //uint64         `json:"gasLimit"         gencodec:"required"`
-        block.gasUsed, // GasUsed     //uint64         `json:"gasUsed"          gencodec:"required"`
-        block.timestamp, //Time        //uint64         `json:"timestamp"        gencodec:"required"`
-        block. extraData, // Extra       //[]byte         `json:"extraData"        gencodec:"required"`
-        block.mixHash, // MixDigest   //common.Hash    `json:"mixHash"`
-        block.nonce, //Nonce       //BlockNonce     `json:"nonce"`
+        block.parentHash,       // 32 bytes
+        block.sha3Uncles,       // 32 bytes
+        block.miner,            // 32 bytes     
+        block.stateRoot,        // 32 bytes     
+        block.transactionsRoot, // 32 bytes    
+        block.receiptsRoot,     // 32 bytes     
+        block.logsBloom,        // 256 bytes 
+        block.difficulty,       // 32 bytes? = *big.Int   
+        block.number,           // 32 bytes? = *big.Int    
+        block.gasLimit,         //  8 bytes         
+        block.gasUsed,          //  8 bytes   
+        block.timestamp,        //  8 bytes                         
+        block.extraData,       // 97 bytes? just gues from trying 
+        block.mixHash,          // 32 bytes         
+        block.nonce,            // 8 bytes          `
     ]
     const formattedHeaderData = headerData.map((bytesLike, i) =>formatHex(bytesLike))
     const rlp = ethers.encodeRlp(formattedHeaderData)
