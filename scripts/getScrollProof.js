@@ -225,10 +225,73 @@ export async function getScollProofValue() {
     }
 
 }
+
+function formatHex(bytesLike) {
+    if (!bytesLike.toLowerCase().startsWith('0x')) {
+        throw new Error(`Not a hex string: ${bytesLike}`)
+    }
+
+    bytesLike = String(bytesLike)
+    if (
+        bytesLike.toLowerCase() === '0' ||
+        bytesLike.toLowerCase() === '0x0' ||
+        bytesLike.toLowerCase() === '0x00'
+    ) {
+        // 0 numerical values shall be represented as '0x'
+        return '0x'
+    } else if (bytesLike.length % 2) {
+        // odd
+        const evenByteLen = (bytesLike.slice(2).length + 1) / 2
+        //zeroPadValue nolonger accepts hex string in v6 but it does return hex string :/
+        return ethers.zeroPadValue(ethers.toBeArray(bytesLike), evenByteLen)
+    } else {
+        return bytesLike
+        }
+}
+
+
+async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
+    const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
+    const provider = new ethers.JsonRpcProvider(PROVIDERURL)
+    const blockHash = (await provider.getBlock(blockNumber)).hash
+    const block = await provider.send('eth_getBlockByHash', [blockHash, false])
+    const headerData = [
+        block.parentHash,  //common.Hash    `json:"parentHash"       gencodec:"required"`
+        block.sha3Uncles,   //common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+        block.miner,    //common.Address `json:"miner"`
+        block.stateRoot,        //common.Hash    `json:"stateRoot"        gencodec:"required"`
+        block.transactionsRoot,      //common.Hash    `json:"transactionsRoot" gencodec:"required"`
+        block.receiptsRoot, // ReceiptHash //common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+        block.logsBloom, // Bloom       //Bloom          `json:"logsBloom"        gencodec:"required"`
+        block.difficulty, // Difficulty  //*big.Int       `json:"difficulty"       gencodec:"required"`
+        block.number,// Number      //*big.Int       `json:"number"           gencodec:"required"`
+        block.gasLimit,// GasLimit    //uint64         `json:"gasLimit"         gencodec:"required"`
+        block.gasUsed, // GasUsed     //uint64         `json:"gasUsed"          gencodec:"required"`
+        block.timestamp, //Time        //uint64         `json:"timestamp"        gencodec:"required"`
+        block. extraData, // Extra       //[]byte         `json:"extraData"        gencodec:"required"`
+        block.mixHash, // MixDigest   //common.Hash    `json:"mixHash"`
+        block.nonce, //Nonce       //BlockNonce     `json:"nonce"`
+    ]
+    const formattedHeaderData = headerData.map((bytesLike, i) =>formatHex(bytesLike))
+    const rlp = ethers.encodeRlp(formattedHeaderData)
+    const offset = 182
+    const stateRootFromRlp = "0x"+rlp.slice(2+offset, 2+64+offset)
+
+    // debug
+    const isCorrectHash = ethers.keccak256(rlp) === block.hash
+    const isCorrectOffset = stateRootFromRlp === block.stateRoot
+
+    console.log({rlp,isCorrectHash, isCorrectOffset, blockHash})
+
+    return rlp
+
+
+}
 async function main() {
 
     //await getScollProofMapping()
-   await getScollProofValue()
+   //await getScollProofValue()
+   await getBlockHeaderRlp()
 }
 
 await main()
