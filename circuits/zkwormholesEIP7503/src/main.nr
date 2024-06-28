@@ -5,7 +5,7 @@ use dep::std::hash::poseidon;
 use dep::std;
 
 global MAX_HASH_PATH_SIZE = 248; //this is the max tree depth in scroll: https://docs.scroll.io/en/technology/sequencer/zktrie/#tree-construction
-global MAX_RLP_SIZE = 1000; //should be enough scroll mainnet wasn't going above 621 
+global MAX_RLP_SIZE = 1000; //should be enough scroll mainnet wasn't going above 621, my guess is 673 bytes max + rlp over head. idk what overhead is tho.
 // TODO actually find out what the largest value could be 
 
 
@@ -13,8 +13,8 @@ struct Storage_proof_data {
     hash_paths: Hash_paths_state_proof<MAX_HASH_PATH_SIZE,MAX_HASH_PATH_SIZE>,
     contract_balance: Field,
     header_rlp: [u8;MAX_RLP_SIZE],
+    header_rlp_len: u32,
     nonce_codesize_0: Field
-    actual_account_haspath_size: u32
 }
 
 fn get_burn_address(secret: Field) -> [u8;32] {
@@ -36,28 +36,28 @@ fn main(
     ) {
     remint_address * 2;
 
-    // constants
+    //-------------- constants--------------
     let slot = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
     let padded_contract = [83,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0];   
-
     let account_preimage = Account_preimage_excl_storage {
         compressed_keccak_code_hash:0x0b76dac2b0a40ec033204a8924a316feab1261917f1807c68dca97310bf17edb, // cannot be change afaik unless maybe self destruct but that is silly
         poseidon_code_hash:         0x136a7980da529d9e8d3a71433fc9dc5aa8c01e3a4eb60cb3a4f9cf9ca5c8e0be, // 
     
-    // inputs    
+    //--------------- inputs ---------------
         nonce_codesize_0:           storage_proof_data.nonce_codesize_0, // only changes if the contract creates another contract: https://ethereum.org/en/developers/docs/accounts/#an-account-examined
         balance:                    storage_proof_data.contract_balance, // always changes            
     }; 
     let burn_address:[u8;32] = get_burn_address(secret);
 
-    // proving
+    //------------ compute block hash ------------------
     let state_root = storage_proof_on_mapping(burn_address, slot, user_balance, padded_contract, storage_proof_data.hash_paths, account_preimage);
-    let state_root_rlp = get_state_root(storage_proof_data.header_rlp);
-    let computed_block_hash:[u8;32] = std::hash::keccak256(storage_proof_data.header_rlp,storage_proof_data.header_rlp.len() as u32);
-    assert(bytes32_to_field(state_root_rlp) == state_root, "computed state root from merkle proof doesnt match the one from the block header rlp");
+    let computed_block_hash:[u8;32] = std::hash::keccak256(storage_proof_data.header_rlp,storage_proof_data.header_rlp_len);
     assert(computed_block_hash == block_hash, "given block hash doesnt match computed block hash");
-}
 
+    //------------- check state root in rlp ----------------
+    let state_root_rlp = get_state_root(storage_proof_data.header_rlp);
+    assert(bytes32_to_field(state_root_rlp) == state_root, "computed state root from merkle proof doesnt match the one from the block header rlp");
+}
 
 #[test]
 fn test_storage_proof_on_mapping() {
