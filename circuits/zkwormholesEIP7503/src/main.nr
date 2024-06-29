@@ -28,8 +28,8 @@ fn get_burn_address(secret: Field) -> [u8;32] {
 }
 
 fn main(
-        user_balance:pub [u8;32], // amount
         remint_address:pub Field, // gets the address to mint the new weth addres to
+        user_balance:pub [u8;32], // amount
         block_hash:pub [u8;32], 
         secret: Field,
         storage_proof_data: Storage_proof_data,
