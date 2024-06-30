@@ -21,9 +21,9 @@ error VerificationFailed();
 contract Token is ERC20, Ownable, ERC20Permit {
     address public verifier;
 
-    constructor(address initialOwner, address _verifier)
+    constructor(address _verifier)
         ERC20("token", "tkn")
-        Ownable(initialOwner)
+        Ownable(msg.sender)
         ERC20Permit("token")
     {
         verifier = _verifier;
