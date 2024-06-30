@@ -255,6 +255,7 @@ export function isMagicBytes(nodeBytes) {
  * @property {ethers.BytesLike[]} hashPath from leaf-hash-sybling to root-child
  * @property {number[]} nodeTypes from leaf-hash-sybling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
+ * 
  * @returns {proofData} proofData
  */
 export function getHashPathFromProof(_proof) {
@@ -414,5 +415,5 @@ async function main() {
     // b.stateRoot
 }
 
-await main()
+//await main()
 

@@ -72,11 +72,11 @@ export function formatProofNodes(proof) {
 export function createStoragePositionMapping(key, keyType, mappingPos) {
     const abiCoder = new ethers.AbiCoder()
     const preImage = abiCoder.encode([keyType, "uint256"], [key, mappingPos])
-    console.log({
-        storageKeyPreImage: preImage,
-        storageKeyPreImageArr: preImage.slice(2).match(/.{1,64}/g).map((x) => "0x" + x).toString(),
-        storageKey: ethers.keccak256(preImage)
-    })
+    // console.log({
+    //     storageKeyPreImage: preImage,
+    //     storageKeyPreImageArr: preImage.slice(2).match(/.{1,64}/g).map((x) => "0x" + x).toString(),
+    //     storageKey: ethers.keccak256(preImage)
+    // })
     return ethers.keccak256(preImage)
 }
 
@@ -250,7 +250,7 @@ function formatHex(bytesLike) {
 }
 
 
-async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
+export async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
     const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
     const provider = new ethers.JsonRpcProvider(PROVIDERURL)
     const blockHash = (await provider.getBlock(blockNumber)).hash
@@ -282,7 +282,7 @@ async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
     const isCorrectHash = ethers.keccak256(rlp) === block.hash
     const isCorrectOffset = stateRootFromRlp === block.stateRoot
 
-    console.log({rlp,isCorrectHash, isCorrectOffset, blockHash})
+    //console.log({rlp,isCorrectHash, isCorrectOffset, blockHash})
 
     return rlp
 
@@ -294,5 +294,4 @@ async function main() {
    //await getScollProofValue()
    await getBlockHeaderRlp()
 }
-
-await main()
+//await main()

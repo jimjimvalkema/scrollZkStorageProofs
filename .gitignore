@@ -77,3 +77,9 @@ zkwormholesExample/ignition/deployments/chain-534351/journal.jsonl
 zkwormholesExample/ignition/deployments/chain-534351/artifacts/TokenModule#Token.dbg.json
 zkwormholesExample/ignition/deployments/chain-534351/artifacts/TokenModule#Token.json
 zkwormholesExample/ignition/deployments/chain-534351/build-info/0dfe92656c05baa3f28c0220eb633bfc.json
+zkwormholesExample/ignition/deployments/chain-534351/artifacts/UltraVerifierkModule#UltraVerifier.dbg.json
+zkwormholesExample/ignition/deployments/chain-534351/artifacts/UltraVerifierkModule#UltraVerifier.json
+zkwormholesExample/ignition/deployments/chain-534351/build-info/09b565f7d8a33d2b0b1a5715308463ef.json
+zkwormholesExample/ignition/deployments/chain-534351/build-info/72db27fb35d9265897fd4c4c8e341b4b.json
+zkwormholesExample/ignition/modules/Token.js
+zkwormholesExample/ignition/modules/UltraVerifier.js
