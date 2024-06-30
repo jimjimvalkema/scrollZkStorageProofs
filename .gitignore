@@ -67,3 +67,13 @@ out/utils/StorageSlot.sol/StorageSlot.json
 out/utils/Strings.sol/Strings.json
 out/zkwormholesEIP7503/Token.sol/IVerifier.json
 out/zkwormholesEIP7503/Token.sol/Token.json
+evm/ignition/deployments/chain-534351/deployed_addresses.json
+evm/ignition/deployments/chain-534351/journal.jsonl
+evm/ignition/deployments/chain-534351/artifacts/TokenModule#Token.dbg.json
+evm/ignition/deployments/chain-534351/artifacts/TokenModule#Token.json
+evm/ignition/deployments/chain-534351/build-info/0dfe92656c05baa3f28c0220eb633bfc.json
+zkwormholesExample/ignition/deployments/chain-534351/deployed_addresses.json
+zkwormholesExample/ignition/deployments/chain-534351/journal.jsonl
+zkwormholesExample/ignition/deployments/chain-534351/artifacts/TokenModule#Token.dbg.json
+zkwormholesExample/ignition/deployments/chain-534351/artifacts/TokenModule#Token.json
+zkwormholesExample/ignition/deployments/chain-534351/build-info/0dfe92656c05baa3f28c0220eb633bfc.json

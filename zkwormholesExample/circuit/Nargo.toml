@@ -5,4 +5,4 @@ authors = [""]
 compiler_version = ">=0.30.0"
 
 [dependencies]
-ScrollStorageProver = { path = "../ScrollStorageProver" }
+ScrollStorageProver = { path = "../../circuit" }
