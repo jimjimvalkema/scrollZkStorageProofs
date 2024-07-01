@@ -69,13 +69,13 @@ pub fn compute_merkle_root<N>(leaf_hash: Field, node_key: Field, hash_path: [Fie
     // TODO  node_key.to_be_bits can be done outside of the circuit. see if thats better
     // TODO cant use hash_path_len as n since its not a constant?
     let n = hash_path.len();
-    let node_key_bits = node_key.to_be_bits(248);
-    let bits_offset = n-hash_path_len;
+    let node_key_bits = node_key.to_le_bits(248); // cant be hash_path_len :( or hash_path.len()
+    //let bits_offset = hash_path_len;
     let mut current = leaf_hash;
     for i in 0..n {
         if(i<hash_path_len){
             // TODO double check this 
-            let path_bit = node_key_bits[i+bits_offset] as bool;
+            let path_bit = node_key_bits[hash_path_len-i-1] as bool;
             let (hash_left, hash_right) = if path_bit {
                 (hash_path[i], current)
             } else {
