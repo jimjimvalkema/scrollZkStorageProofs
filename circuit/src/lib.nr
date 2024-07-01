@@ -69,12 +69,7 @@ pub fn compute_merkle_root<N>(leaf_hash: Field, node_key: Field, hash_path: [Fie
     // TODO cant use hash_path_len as n since its not a constant?
     let n = hash_path.len();
     let node_key_bits = node_key.to_le_bits(n as u32);
-    // println("n-hash_path_len-1");
-    // println(n);
-    // println(hash_path_len);
     let bits_offset = n-hash_path_len;
-    // println("node_key_bits");
-    // println(node_key_bits);
     let mut current = leaf_hash;
     for i in 0..n {
         if(i<hash_path_len){
@@ -175,8 +170,8 @@ pub fn storage_proof_on_mapping<A,S>(key: [u8;32], slot: [u8; 32], value:  [u8; 
     // get storage_root from storage proof
     let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
     let storage_leaf_hash = hash_storage_leaf(storage_node_key,value,hash_paths.storage_proof.leaf_type);
-    let storage_root = compute_merkle_root(storage_leaf_hash, storage_node_key, hash_paths.storage_proof.hash_path,  hash_paths.storage_proof.node_types, hash_paths.storage_proof.real_hash_path_len);
 
+    let storage_root = compute_merkle_root(storage_leaf_hash, storage_node_key, hash_paths.storage_proof.hash_path,  hash_paths.storage_proof.node_types, hash_paths.storage_proof.real_hash_path_len);
     // get state root from account proof using storage_root as input
     // https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
     let account_node_key: Field = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(padded_contract));

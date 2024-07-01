@@ -250,9 +250,9 @@ function formatHex(bytesLike) {
 }
 
 
-export async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
-    const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
-    const provider = new ethers.JsonRpcProvider(PROVIDERURL)
+export async function getBlockHeaderRlp(blockNumber,provider) {
+    // const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
+    // const provider = new ethers.JsonRpcProvider(PROVIDERURL)
     const blockHash = (await provider.getBlock(blockNumber)).hash
     const block = await provider.send('eth_getBlockByHash', [blockHash, false])
     //https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
@@ -271,7 +271,16 @@ export async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
         block.timestamp,        //  8 bytes                         
         block.extraData,       // 97 bytes? just gues from trying 
         block.mixHash,          // 32 bytes         
-        block.nonce,            // 8 bytes          `
+        block.nonce,            // 8 bytes   
+
+        // TODO
+        // is in testnet not mainnet?
+        block.baseFeePerGas,
+        // block.withdrawalsRoot,
+        // block.blobGasUsed,
+        // block.excessBlobGas,
+        // block.parentBeaconBlockRoot
+
     ]
     const formattedHeaderData = headerData.map((bytesLike, i) =>formatHex(bytesLike))
     const rlp = ethers.encodeRlp(formattedHeaderData)
@@ -282,7 +291,7 @@ export async function getBlockHeaderRlp(blockNumber = Number(0x62be1f)) {
     const isCorrectHash = ethers.keccak256(rlp) === block.hash
     const isCorrectOffset = stateRootFromRlp === block.stateRoot
 
-    //console.log({rlp,isCorrectHash, isCorrectOffset, blockHash})
+    console.log({rlp,isCorrectHash, isCorrectOffset, blockHash, blocknum: Number(block.number)})
 
     return rlp
 
@@ -292,6 +301,6 @@ async function main() {
 
     //await getScollProofMapping()
    //await getScollProofValue()
-   await getBlockHeaderRlp()
+   //await getBlockHeaderRlp()
 }
 //await main()
