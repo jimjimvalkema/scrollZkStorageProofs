@@ -19,7 +19,7 @@ struct Hash_path_proof<N> {
         node_types: [Field;N],
         leaf_type: Field,
         real_hash_path_len: u64,
-        hash_path_bools: [bool;N]
+        //hash_path_bools: [bool;N]
     }
 
 struct Hash_paths_state_proof<S,A> {
@@ -189,12 +189,37 @@ pub fn hash_account_leaf(
 // value = user balance (padded zeros at start)
 // padded_contract = the contract address but with zeros at the start *left*
 // hash_paths and account_preimage is extra information needed to compute the proof
-pub fn storage_proof_on_mapping<A,S>(key: [u8;32], slot: [u8; 32], value:  [u8; 32], padded_contract: [u8;32], hash_paths: Hash_paths_state_proof<A,S>, account_preimage: Account_preimage_excl_storage) -> Field {
+// pub fn storage_proof_on_mapping<A,S>(key: [u8;32], slot: [u8; 32], value:  [u8; 32], padded_contract: [u8;32], hash_paths: Hash_paths_state_proof<A,S>, account_preimage: Account_preimage_excl_storage) -> Field {
+//     // get storage_root from storage proof
+//     let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
+//     let storage_leaf_hash = hash_storage_leaf(storage_node_key,value,hash_paths.storage_proof.leaf_type);
+
+//     let storage_root = compute_merkle_root_with_bools(storage_leaf_hash, hash_paths.storage_proof.hash_path,  hash_paths.storage_proof.node_types, hash_paths.storage_proof.real_hash_path_len, hash_paths.storage_proof.hash_path_bools);
+//     // get state root from account proof using storage_root as input
+//     // https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
+//     let account_node_key: Field = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(padded_contract));
+//     let account_leaf_hash = hash_account_leaf(
+//         account_node_key, // contains hashed contract address
+//         account_preimage.nonce_codesize_0,
+//         account_preimage.balance,
+//         storage_root, // input from storage proof
+//         account_preimage.compressed_keccak_code_hash,
+//         account_preimage.poseidon_code_hash,
+//         hash_paths.account_proof.leaf_type
+//         );
+//     let state_root = compute_merkle_root_with_bools(account_leaf_hash, hash_paths.account_proof.hash_path,  hash_paths.account_proof.node_types, hash_paths.account_proof.real_hash_path_len);
+
+
+//     state_root
+// }
+
+
+pub fn storage_proof_on_mapping_node_key<A,S>(key: [u8;32], slot: [u8; 32], value:  [u8; 32], padded_contract: [u8;32], hash_paths: Hash_paths_state_proof<A,S>, account_preimage: Account_preimage_excl_storage) -> Field {
     // get storage_root from storage proof
     let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
     let storage_leaf_hash = hash_storage_leaf(storage_node_key,value,hash_paths.storage_proof.leaf_type);
 
-    let storage_root = compute_merkle_root_with_bools(storage_leaf_hash, hash_paths.storage_proof.hash_path,  hash_paths.storage_proof.node_types, hash_paths.storage_proof.real_hash_path_len, hash_paths.storage_proof.hash_path_bools);
+    let storage_root = compute_merkle_root(storage_leaf_hash,storage_node_key, hash_paths.storage_proof.hash_path,  hash_paths.storage_proof.node_types, hash_paths.storage_proof.real_hash_path_len);
     // get state root from account proof using storage_root as input
     // https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
     let account_node_key: Field = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(padded_contract));
@@ -207,12 +232,11 @@ pub fn storage_proof_on_mapping<A,S>(key: [u8;32], slot: [u8; 32], value:  [u8; 
         account_preimage.poseidon_code_hash,
         hash_paths.account_proof.leaf_type
         );
-    let state_root = compute_merkle_root_with_bools(account_leaf_hash, hash_paths.account_proof.hash_path,  hash_paths.account_proof.node_types, hash_paths.account_proof.real_hash_path_len, hash_paths.account_proof.hash_path_bools);
+    let state_root = compute_merkle_root(account_leaf_hash,account_node_key, hash_paths.account_proof.hash_path,  hash_paths.account_proof.node_types, hash_paths.account_proof.real_hash_path_len);
 
 
     state_root
 }
-
 pub fn get_state_root<N>(header_rlp: [u8;N]) -> [u8; 32] {
     let mut state_root:[u8;32] = [0;32];
     for i in 0..32 {
