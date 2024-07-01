@@ -16,7 +16,7 @@ global STATE_ROOT_BLOCK_HEADER_OFFSET = 91;
 
 struct Hash_path_proof<N> {
         hash_path: [Field;N],
-        node_types: [u8;N],
+        node_types: [Field;N],
         leaf_type: Field,
         real_hash_path_len: u64,
         hash_path_bools: [bool;N]
@@ -92,7 +92,7 @@ pub fn poseidon2_domain(domain: Field, input: [Field; 2]) -> Field {
 // used merkle from noir std as example
 // https://github.com/noir-lang/noir/blob/49e1b0c0d45565f3e87469b77f2fef0c283f6ea1/noir_stdlib/src/merkle.nr#L5
 // Returns the merkle root of the tree from the provided leaf, its hashpath, domains, using a poseidon2 with the domain argument
-pub fn compute_merkle_root_with_bools<N>(leaf_hash: Field,hash_path: [Field; N], node_types: [u8; N], hash_path_len: u64, hash_path_bools: [bool; N]) -> Field {
+pub fn compute_merkle_root_with_bools<N>(leaf_hash: Field,hash_path: [Field; N], node_types: [Field; N], hash_path_len: u64, hash_path_bools: [bool; N]) -> Field {
     let n = hash_path.len();
     let mut current = leaf_hash;
     for i in 0..n {
@@ -104,7 +104,7 @@ pub fn compute_merkle_root_with_bools<N>(leaf_hash: Field,hash_path: [Field; N],
             } else {
                 (current, hash_path[i])
             };
-            let domain = node_types[i] as Field;
+            let domain = node_types[i];
             current = poseidon2_domain(domain,[hash_left, hash_right]);
         }
     }
