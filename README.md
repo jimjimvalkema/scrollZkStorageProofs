@@ -10,6 +10,13 @@ yarn install
 yarn run install-submodules;
 ```
 
+## install nargo (noir)
+```
+curl -L https://raw.githubusercontent.com/noir-lang/noirup/main/install | bash;
+source ~/.bashrc;
+noirup;
+```
+
 ## test noir
 ```
 nargo test --show-output
