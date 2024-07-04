@@ -19,5 +19,6 @@ noirup;
 
 ## test noir
 ```
+cd circuits/test;
 nargo test --show-output
 ```
