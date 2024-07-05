@@ -253,7 +253,7 @@ function formatHex(bytesLike) {
 export async function getBlockHeaderRlp(blockNumber,provider) {
     // const PROVIDERURL = "https://scroll.drpc.org"//"https://scroll-sepolia.drpc.org"
     // const provider = new ethers.JsonRpcProvider(PROVIDERURL)
-    const blockHash = (await provider.getBlock(blockNumber)).hash
+    const blockHash = (await provider.getBlock(Number(blockNumber))).hash
     const block = await provider.send('eth_getBlockByHash', [blockHash, false])
     //https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
     const headerData = [
@@ -291,7 +291,7 @@ export async function getBlockHeaderRlp(blockNumber,provider) {
     const isCorrectHash = ethers.keccak256(rlp) === block.hash
     const isCorrectOffset = stateRootFromRlp === block.stateRoot
 
-    console.log({rlp,isCorrectHash, isCorrectOffset, blockHash, blocknum: Number(block.number)})
+    console.log("created rlp header: ",{rlp,isCorrectHash, isCorrectOffset, blockHash, blocknum: Number(block.number)})
 
     return rlp
 
