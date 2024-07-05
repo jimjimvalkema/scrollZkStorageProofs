@@ -22,3 +22,5 @@ noirup;
 cd circuits/test;
 nargo test --show-output
 ```
+
+## usage 
