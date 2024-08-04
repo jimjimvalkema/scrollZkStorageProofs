@@ -17,6 +17,13 @@ source ~/.bashrc;
 noirup;
 ```
 
+## install nargo backend
+```shell
+curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/master/barretenberg/cpp/installation/install | bash;
+source ~/.bashrc;
+ bbup --version 0.41.0;
+```
+
 ## test noir
 ```
 cd circuits/test;
