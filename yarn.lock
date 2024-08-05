@@ -2678,6 +2678,11 @@ pify@^4.0.1:
   resolved "https://registry.npmjs.org/pify/-/pify-4.0.1.tgz"
   integrity sha512-uB80kBFb/tfd68bVleG9T5GGsGPjJrLAUpR5PZIrhBnIaRTQRjqdJSsIKkOP6OAIFbj7GOrcudc5pNjZ+geV2g==
 
+poseidon-lite-with-domain@^0.2.2:
+  version "0.2.2"
+  resolved "https://registry.yarnpkg.com/poseidon-lite-with-domain/-/poseidon-lite-with-domain-0.2.2.tgz#ac93fceb2303e0cf21ace91144062eb281a2b117"
+  integrity sha512-ID9lFmm4zSnhuwpT8nz+FYmvl4bgR+DizdekeawDL1IEwLpArCNs91XZdSOXm3d5IfAVxEDI3JVM/R7x21XweA==
+
 poseidon-lite@^0.2.0:
   version "0.2.0"
   resolved "https://registry.npmjs.org/poseidon-lite/-/poseidon-lite-0.2.0.tgz"
