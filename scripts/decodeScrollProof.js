@@ -1,4 +1,4 @@
-import  {poseidon2}  from "../lib/poseidon-lite-for-scroll/build/index.js"
+import {poseidon2}  from "poseidon-lite-with-domain"
 import {N, assert, ethers} from "ethers"
 import { ZkTrieNode, NodeTypes, leafTypes } from "./types/ZkTrieNode.js";
 import {Zkt} from "./types/Zkt.js"
@@ -313,10 +313,10 @@ export function verifyHashPath(hashPath, nodeTypes, leafNode ) {
 }
 
 
-if (!windowIsEmpty) {
-    window.hashNode = hashNode;
-    window.verifyProof = verifyProof;
-}
+// if (!windowIsEmpty) {
+//     window.hashNode = hashNode;
+//     window.verifyProof = verifyProof;
+// }
 
 async function saveStorageProofHashPathSToJson() {
     //extract hashpath and verify

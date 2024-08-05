@@ -1,12 +1,12 @@
-import { encryptKeystoreJson, ethers } from "ethers";
-import { buildPoseidon, buildPoseidonWasm, buildPoseidonOpt } from "circomlibjs";
+import { ethers } from "ethers";
+//import { buildPoseidon, buildPoseidonWasm, buildPoseidonOpt } from "circomlibjs";
 import { 
     poseidon1,poseidon2,poseidon3,poseidon4,poseidon5,poseidon6,poseidon7,poseidon8,poseidon9,poseidon10,poseidon11,poseidon12,poseidon13,poseidon14,poseidon15,poseidon16 
 } from "poseidon-lite";
-import { getCurveFromName } from "ffjavascript";
+//import { getCurveFromName } from "ffjavascript";
 
 import * as fs from 'node:fs/promises';
-import * as snarkjs from "snarkjs"
+//import * as snarkjs from "snarkjs"
 
 
 //----some stuff so i can test things in the browser console (i prefer it)
@@ -20,8 +20,8 @@ if (typeof process === "object" &&
         // Check if the environment is a Browser
         windowIsEmpty = false;
         window.ethers = ethers
-        window.getCurveFromName = getCurveFromName;
-        window.buildPoseidon = buildPoseidon
+        //window.getCurveFromName = getCurveFromName;
+        //window.buildPoseidon = buildPoseidon
         window.poseidon1 = poseidon1
         window.poseidon2 = poseidon2
         window.poseidon3 = poseidon3
