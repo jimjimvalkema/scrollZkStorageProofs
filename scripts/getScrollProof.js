@@ -273,14 +273,14 @@ export async function getBlockHeaderRlp(blockNumber,provider) {
         block.mixHash,          // 32 bytes         
         block.nonce,            // 8 bytes   
 
-        // TODO
-        // is in testnet not mainnet?
+        // is in scroll-sepolia but not mainnet yet
         block.baseFeePerGas,
+        
+        // in neither chains
         // block.withdrawalsRoot,
         // block.blobGasUsed,
         // block.excessBlobGas,
         // block.parentBeaconBlockRoot
-
     ]
     const formattedHeaderData = headerData.map((bytesLike, i) =>formatHex(bytesLike))
     const rlp = ethers.encodeRlp(formattedHeaderData)
