@@ -14,7 +14,7 @@ global HASH_DOMAIN_ACCOUNT_LEAF:Field = 5 * HASH_DOMAIN_ELEMS_BASE;
 // actually rlp decoding can be used but it would be computationally costly
 global STATE_ROOT_BLOCK_HEADER_OFFSET = 91;
 
-struct Hash_path_proof<N> {
+struct Hash_path_proof<let N: u32> {
         hash_path: [Field;N],
         node_types: [Field;N],
         leaf_type: Field,
@@ -22,7 +22,7 @@ struct Hash_path_proof<N> {
         hash_path_bools: [bool;N]
     }
 
-struct Hash_paths_state_proof<S,A> {
+struct Hash_paths_state_proof<let S: u32,let A: u32> {
     storage_proof: Hash_path_proof<S>,
     account_proof: Hash_path_proof<A>
 }
@@ -66,7 +66,7 @@ pub fn poseidon2_domain(domain: Field, input: [Field; 2]) -> Field {
 // used merkle from noir std as example
 // https://github.com/noir-lang/noir/blob/49e1b0c0d45565f3e87469b77f2fef0c283f6ea1/noir_stdlib/src/merkle.nr#L5
 // Returns the merkle root of the tree from the provided leaf, its hashpath, domains, using a poseidon2 with the domain argument
-pub fn compute_merkle_root<N>(leaf_hash: Field,hash_path: [Field; N], node_types: [Field; N], hash_path_len: u32, hash_path_bools: [bool; N]) -> Field {
+pub fn compute_merkle_root<let N: u32>(leaf_hash: Field,hash_path: [Field; N], node_types: [Field; N], hash_path_len: u32, hash_path_bools: [bool; N]) -> Field {
     let n = hash_path.len();
     let mut current = leaf_hash;
     for i in 0..n {
@@ -163,7 +163,7 @@ pub fn hash_account_leaf(
 // value = user balance (padded zeros at start)
 // padded_contract = the contract address but with zeros at the start *left*
 // hash_paths and account_preimage is extra information needed to compute the proof
-pub fn storage_proof_on_mapping<A,S>(
+pub fn storage_proof_on_mapping<let A: u32,let S: u32>(
         key: [u8;32], 
         slot: [u8; 32], 
         value:  [u8; 32], 
@@ -218,7 +218,7 @@ pub fn storage_proof_on_mapping<A,S>(
 
 
 
-pub fn get_state_root<N>(header_rlp: [u8;N]) -> [u8; 32] {
+pub fn get_state_root<let N: u32>(header_rlp: [u8;N]) -> [u8; 32] {
     // header_rlp[STATE_ROOT_BLOCK_HEADER_OFFSET, STATE_ROOT_BLOCK_HEADER_OFFSET+32]
     let mut state_root:[u8;32] = [0;32];
     for i in 0..32 {
