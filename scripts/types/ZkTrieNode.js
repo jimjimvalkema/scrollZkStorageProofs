@@ -1,5 +1,53 @@
 import { ethers } from "ethers"
 
+//@TODO technically not part of ZkTrieNode
+export const BLOCK_HEADER_ORDERING = 
+	[	
+        {"timeAdded":{534352:0,			534351:0		},	"name": "parentHash"},      			 // 32 bytes
+        {"timeAdded":{534352:0,			534351:0		},	"name": "sha3Uncles"},      			 // 32 bytes
+        {"timeAdded":{534352:0,			534351:0		},	"name": "miner"},           			 // 32 bytes     
+        {"timeAdded":{534352:0,			534351:0		},	"name": "stateRoot"},       			 // 32 bytes     
+        {"timeAdded":{534352:0,			534351:0		},	"name": "transactionsRoot"},			 // 32 bytes    
+        {"timeAdded":{534352:0,			534351:0		},	"name": "receiptsRoot"},    			 // 32 bytes     
+        {"timeAdded":{534352:0,			534351:0		},	"name": "logsBloom"},       			 // 256 bytes 
+        {"timeAdded":{534352:0,			534351:0		},	"name": "difficulty"},      			 // 32 bytes? = *big.Int   
+        {"timeAdded":{534352:0,			534351:0		},	"name": "number"},          			 // 32 bytes? = *big.Int    
+        {"timeAdded":{534352:0,			534351:0		},	"name": "gasLimit"},        			 //  8 bytes         
+        {"timeAdded":{534352:0,			534351:0		},	"name": "gasUsed"},         			 //  8 bytes   
+        {"timeAdded":{534352:0,			534351:0		},	"name": "timestamp"},       			 //  8 bytes                         
+        {"timeAdded":{534352:0,			534351:0		},	"name": "extraData"},       			 // 97 bytes? just gues from trying 
+        {"timeAdded":{534352:0,			534351:0		},	"name": "mixHash"},         			 // 32 bytes         
+        {"timeAdded":{534352:0,			534351:0		},	"name": "nonce"},						 // 8 bytes   
+        {"timeAdded":{534352:7096836,	534351:4740239	},	"name": "baseFeePerGas"},				 // in mainnet after a fork Bernoulli at scroll block 4740239 (https://docs.scroll.io/en/technology/overview/scroll-upgrades/#bernoulli-upgrade )
+        {"timeAdded":{534352:-1,		534351:-1		},	"name": "withdrawalsRoot"}, 			 // in neither chains
+        {"timeAdded":{534352:-1,		534351:-1		},	"name": "blobGasUsed"},
+        {"timeAdded":{534352:-1,		534351:-1		},	"name": "excessBlobGas"},
+        {"timeAdded":{534352:-1,		534351:-1		},	"name": "parentBeaconBlockRoot"}
+	]
+
+/**
+ * 
+ * @param {Object} obj
+ * @param {number} obj.chainId
+ * @param {number} obj.blockNumber
+ * @returns {string[]} ordering
+ */
+export function getBlockHeaderOrdering({chainId,blockNumber}) {
+	// chainId doesnt exist? blockNumber is then undefined. which is fine since undefined > blockNumber is always false
+	const ordering = BLOCK_HEADER_ORDERING.filter((item)=>item.timeAdded[chainId] > blockNumber) // only relevant header items
+	return ordering.map((item)=>item.name)
+}
+
+export const ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING = [ 
+    {name:"zeros", size:16}, {name:"codeSize", size:8}, {name:"nonce", size:8},
+    {name:"balance", size:32},
+    {name:"storageRoot", size:32},
+    {name:"keccakCodeHash", size:32},
+    {name:"poseidonCodeHash", size:32},
+]
+Object.freeze(ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING)
+
+
 // NodeType defines the type of node in the MT.
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/trie/zk_trie_node.go#L16
 export const NodeTypes = {

@@ -1,10 +1,10 @@
 import {poseidon2}  from "poseidon-lite-with-domain"
 import {N, assert, ethers} from "ethers"
-import { ZkTrieNode, NodeTypes, leafTypes } from "./types/ZkTrieNode.js";
+import { ZkTrieNode, NodeTypes, leafTypes, ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING, getBlockHeaderOrdering } from "./types/ZkTrieNode.js";
 import {Zkt} from "./types/Zkt.js"
 import * as fs from 'node:fs/promises';
 
-import storageProofMapping from './out/scrollProofMapping.json' assert {type: 'json'}
+
 
 //----some stuff so i can test things in the browser console (i prefer it)
 let windowIsEmpty = true
@@ -18,6 +18,31 @@ if (typeof process === "object" &&
     }
 }
 
+/**
+ * @typedef decodedPreImage
+ * @property {string} zeros
+ * @property {string} codeSize
+ * @property {string} nonce
+ * @property {string} balance
+ * @property {string} storageRoot
+ * @property {string} keccakCodeHash
+ * @property {string} poseidonCodeHash
+ * 
+ * @param {Object} obj
+ * @param {ethers.BytesLike[]} obj.valuePreimage 
+ * @returns {decodedPreImage}
+ */
+export function decodeAccountValuePreimage({valuePreimage}) {
+    let decodedPreImage = {}
+    let currentByte = 0
+    for (const encodingItem of ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING) {
+        const valuePreimageIndex = Math.ceil(currentByte/32) - 1
+        decodedPreImage[encodingItem.name] = valuePreimage[valuePreimageIndex].slice(2).slice(0,encodingItem.size*2)
+        currentByte += encodingItem.size
+    }
+
+    return decodedPreImage
+}
 
 
 // decoding--------------
@@ -184,8 +209,8 @@ export function hashElems(domain,elems) {
     if (hashedElems.length === 1 ) {
         resHash = hashedElems[0]
     } else if (hashedElems.length === 2) {
-        // TODO hashedElems.reverse() might break things when elems.length > 4 and a even lenght.
-        // it asumes that when hashedElems === 2 the last item is a left over.
+        // TODO hashedElems.reverse() might break things when elems.length > 4 and a even length.
+        // it assumes that when hashedElems === 2 the last item is a left over.
         // maybe track left overs? idk how to deal with left uneven left overs.
         // maybe its normal? maybe its just results in a unbalanced tree part being on the left?
         // shouldn't be a issue with storage proof though since their value preImages,
@@ -252,8 +277,8 @@ export function isMagicBytes(nodeBytes) {
  * @param {ethers.BytesLike[]} _proof 
  * 
  * @typedef proofData
- * @property {ethers.BytesLike[]} hashPath from leaf-hash-sybling to root-child
- * @property {number[]} nodeTypes from leaf-hash-sybling to root-child
+ * @property {ethers.BytesLike[]} hashPath from leaf-hash-sibling to root-child
+ * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
  * 
  * @returns {proofData} proofData
@@ -328,7 +353,7 @@ async function saveStorageProofHashPathSToJson() {
     const storageKeyPreImage = ethers.concat([storageValue,storageSlot])
     const storageKey = ethers.keccak256(storageKeyPreImage)
 
-    // leafnode.keyPreimage = storageKey, because it still needs to be hashed by poseidon because poseidon is bn254 = 31 byte bute keccak = 32 byte
+    // leafnode.keyPreimage = storageKey, because it still needs to be hashed by poseidon because poseidon is bn254 = 254 bitse but keccak = 256 bits
     leafNode.keyPreimage = storageKey
     assert(leafNode.keyPreimage === storageProofMapping.storageProof[0].key, 
         "storageKey doesnt match"
@@ -342,7 +367,7 @@ async function saveStorageProofHashPathSToJson() {
     )
 
     // quick note about the leafNode obj
-    // leafNode contains hashPathBools wich is made from the leafNode.nodekey
+    // leafNode contains hashPathBools which is made from the leafNode.nodekey
     // done at nodeFromBytes at: n.hashPathBools =  BigInt(n.nodeKey).toString(2).split('').map(x => x === '1').reverse()
 
     // leafNode.nodeKey is made from hashing the storage key: poseidon2([first16bytes, last16bytes], 512)
@@ -361,6 +386,61 @@ async function saveStorageProofHashPathSToJson() {
     const decodedProof = proof.map((nodeBytes)=>nodeFromBytes(nodeBytes))
     await fs.writeFile('./scripts/out/decodedProof.json',JSON.stringify(decodedProof,null,2))
     //await fs.writeFile('./scripts/out/hashPathStorageProof.json',JSON.stringify({hashPath,nodeTypes,leafNode},null,0))
+}
+/**
+ * @param {Object} obj 
+ * @param {Object} obj.proof proof from the jsonrpc response
+ * 
+ * @typedef proofData
+ * @property {ethers.BytesLike[]} hashPath from leaf-hash-sibling to root-child
+ * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
+ * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
+ * 
+ * @typedef decodedProof
+ * @property {proofData} accountProof
+ * @property {proofData} storageProof
+ * 
+ * @returns {decodedProof} decodedProof
+ */
+export function decodeProof({ proof }) {
+    const accountProof = getHashPathFromProof(proof.accountProof[0].proof)
+    const storageProof = getHashPathFromProof(proof.storageProof[0].proof)
+    return {accountProof, storageProof}
+}
+
+/**
+ * @typedef proofData
+ * @property {ethers.BytesLike[]} hashPath from leaf-hash-sibling to root-child
+ * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
+ * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
+ * 
+ * @typedef decodedProof
+ * @property {proofData} accountProof
+ * @property {proofData} storageProof
+ * 
+ * @param {Object} obj 
+ * @param {decodedProof} obj.proof
+ * @param {BigInt} obj.blockNumber 
+ */
+export function verifyDecodedProof({proof}) {
+    // create storage key on the spot to verify it matches the 
+    const storageSlot = ethers.zeroPadValue("0x00", 32)
+    const storageValue = ethers.zeroPadValue("0x4402c128c2337d7a6c4c867be68f7714a4e06429", 32)
+    const storageKeyPreImage = ethers.concat([storageValue, storageSlot])
+    const storageKey = ethers.keccak256(storageKeyPreImage)
+  
+    // leafnode.keyPreimage = storageKey, because it still needs to be hashed by poseidon because poseidon is bn254 = 31 byte byte keccak = 32 byte
+    //storageProof.leafNode.keyPreimage = storageKey
+    assert(storageKey === proof.storageProof[0].key, "storageKey doesn't match")
+  
+    // verify storage proof
+    const hashedStorageRoot = verifyHashPath(proof.storageProof.hashPath, proof.storageProof.nodeTypes, proof.storageProof.leafNode)
+    const decodedAccountValuePreimage = decodeAccountValuePreimage({accountProofValuePreimage: proof.accountProof.leafNode.valuePreimage})
+    assert(hashedStorageRoot === decodedAccountValuePreimage.storageRoot, "storage root resulted from hashing the storageProof hashpath doesnt match the storageRoot extracted from the accountProof leaf node")
+
+    // verify account proof
+    const stateRoot = verifyHashPath(proof.accountProof.hashPath, proof.accountProof.nodeTypes, proof.accountProof.leafNode)
+    return stateRoot
 }
 
 async function main() {

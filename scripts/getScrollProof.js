@@ -269,11 +269,11 @@ export async function getBlockHeaderRlp(blockNumber,provider) {
         block.gasLimit,         //  8 bytes         
         block.gasUsed,          //  8 bytes   
         block.timestamp,        //  8 bytes                         
-        block.extraData,       // 97 bytes? just gues from trying 
+        block.extraData,        // 97 bytes? just gues from trying 
         block.mixHash,          // 32 bytes         
         block.nonce,            // 8 bytes   
 
-        // is in scroll-sepolia but not mainnet yet
+        // added later in mainnet 
         block.baseFeePerGas,
         
         // in neither chains
