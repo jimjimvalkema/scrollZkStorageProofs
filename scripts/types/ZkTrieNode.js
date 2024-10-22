@@ -33,9 +33,9 @@ export const BLOCK_HEADER_ORDERING =
  * @returns {string[]} ordering
  */
 export function getBlockHeaderOrdering({chainId,blockNumber}) {
-	// chainId doesnt exist? blockNumber is then undefined. which is fine since undefined > blockNumber is always false
-	const ordering = BLOCK_HEADER_ORDERING.filter((item)=>item.timeAdded[chainId] > blockNumber) // only relevant header items
-	return ordering.map((item)=>item.name)
+	// chainId doesnt exist? blockNumber is then undefined. which is fine since undefined < blockNumber is always false
+	const ordering = BLOCK_HEADER_ORDERING.filter((item)=>item.timeAdded[chainId] < blockNumber && item.timeAdded[chainId] !== -1) // only relevant header items
+	return ordering
 }
 
 export const ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING = [ 

@@ -361,7 +361,6 @@ async function saveStorageProofHashPathSToJson() {
 
     // verify proof
     const rootHash = verifyHashPath(hashPath, nodeTypes, leafNode)
-    console.log(rootHash)
     assert(rootHash === storageProofMapping.storageHash, 
         "failed to verify hashPath"
     )
@@ -387,25 +386,120 @@ async function saveStorageProofHashPathSToJson() {
     await fs.writeFile('./scripts/out/decodedProof.json',JSON.stringify(decodedProof,null,2))
     //await fs.writeFile('./scripts/out/hashPathStorageProof.json',JSON.stringify({hashPath,nodeTypes,leafNode},null,0))
 }
+
+function formatHex(bytesLike) {
+    if (!bytesLike.toLowerCase().startsWith('0x')) {
+        throw new Error(`Not a hex string: ${bytesLike}`)
+    }
+
+    bytesLike = String(bytesLike)
+    if (
+        bytesLike.toLowerCase() === '0' ||
+        bytesLike.toLowerCase() === '0x0' ||
+        bytesLike.toLowerCase() === '0x00'
+    ) {
+        // 0 numerical values shall be represented as '0x'
+        return '0x'
+    } else if (bytesLike.length % 2) {
+        // odd
+        const evenByteLen = (bytesLike.slice(2).length + 1) / 2
+        //zeroPadValue nolonger accepts hex string in v6 but it does return hex string :/
+        return ethers.zeroPadValue(ethers.toBeArray(bytesLike), evenByteLen)
+    } else {
+        return bytesLike
+        }
+}
+/**
+ * 
+ * @param {Object} obj
+ * @param {ethers.BigNumberish} obj.blockNumber
+ * @param {ethers.Provider} obj.provider
+ * 
+ * @typedef {{name: String, data: ethers.BytesLike}} headerData
+ * @returns {headerData[]} headerData
+ */
+export async function getOrderedHeaderData({ blockNumber, provider }) {
+    const chainId = ethers.toNumber((await provider.getNetwork()).chainId)
+    blockNumber = ethers.toNumber(blockNumber)
+    const block = await provider.send('eth_getBlockByNumber', [ethers.toBeHex(blockNumber), false])
+
+    const headerOrdering = getBlockHeaderOrdering({ blockNumber, chainId }).map((item) => item.name)
+    const headerData = headerOrdering.map(
+        (item) => {
+            return { "name": item, "data": block[item] }
+        }
+    )
+
+    return headerData
+}
+
+/**
+ * 
+ * @param {Object} obj
+ * @param {ethers.BigNumberish} obj.blockNumber
+ * @param {ethers.Provider} obj.provider
+ * 
+ * @typedef {ethers.hexString} rlp
+ * @typedef {{name: String, offset: Number, end: Number}} byteNibbleOffsets as nibble (divide by to to get normal byte offset)
+ * 
+ * @returns {rlp, byteNibbleOffsets} proof
+ */
+export async function getBlockHeaderProof({blockNumber,headerItems, provider}) {
+    blockNumber = ethers.toBeHex(blockNumber)
+
+    
+
+    const headerData = await getOrderedHeaderData({ blockNumber, provider })
+    const formattedHeaderData = headerData.map((item, i) =>formatHex(item.data))
+    const rlp = ethers.encodeRlp(formattedHeaderData)
+    
+    // the circuit uses this hardcoded offset. @TODO move this somewhere where it makes sense to check this
+    // the uses this offset to extract the stateRoot
+    const block = await provider.send('eth_getBlockByNumber', [blockNumber, false])
+    const offset = 182
+    const stateRootFromRlp = "0x"+rlp.slice(2+offset, 2+64+offset)
+    const isCorrectHash = ethers.keccak256(rlp) === block.hash
+    const isCorrectOffset = stateRootFromRlp === block.stateRoot
+    console.log("created rlp header (debug): ",{rlp,isCorrectHash, isCorrectOffset, blockHash:block.hash, blocknum: Number(block.number)})
+    //----------
+
+    //const headerDataAsObject = Object.fromEntries(headerData.map((item)=>[item.name, item.data]))
+    
+
+    const rlpNo0x = rlp.slice(2)
+    const byteNibbleOffsets =  Object.fromEntries(headerData.toReversed().map((headerItem)=>{
+        const offset = (rlpNo0x.lastIndexOf(headerItem.data.slice(2))) 
+        const end = offset + headerItem.data.length
+
+        return [headerItem.name, {offset,end}]
+
+
+    }))
+    return {rlp, byteNibbleOffsets}
+}
+
 /**
  * @param {Object} obj 
  * @param {Object} obj.proof proof from the jsonrpc response
+ * @param {ethers.provider} obj.provider a ethers provider object used to get the header data of a block to verify against
+ * @param {ethers.BigNumberish} obj.blockNumber blockNumber of the block at which the proof is from
  * 
- * @typedef proofData
+ * @typedef merkleProofData
  * @property {ethers.BytesLike[]} hashPath from leaf-hash-sibling to root-child
  * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
  * 
- * @typedef decodedProof
- * @property {proofData} accountProof
- * @property {proofData} storageProof
+ * @typedef {{accountProof: merkleProofData, storageProof: merkleProofData, headerProof: headerProof, blockNumber: number }} decodedProof
  * 
  * @returns {decodedProof} decodedProof
  */
-export function decodeProof({ proof }) {
-    const accountProof = getHashPathFromProof(proof.accountProof[0].proof)
+export async function decodeProof({ proof, provider, blockNumber }) {
+    const accountProof = getHashPathFromProof(proof.accountProof)
     const storageProof = getHashPathFromProof(proof.storageProof[0].proof)
-    return {accountProof, storageProof}
+    
+    const {rlp, byteNibbleOffsets} = await getBlockHeaderProof({blockNumber, provider})
+    const headerProof = {rlp, stateRootOffset: byteNibbleOffsets.stateRoot.offset/2}
+    return {accountProof, storageProof, headerProof, blockNumber}
 }
 
 /**
