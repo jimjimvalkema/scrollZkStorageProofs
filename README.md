@@ -1,13 +1,10 @@
 # scrollZkStorageProofs
-
-https://nodejs.org/en/download/package-manager
-npm install -g npm@10.8.0 
+install node version 22 or higher
 
 
 ## install js
 ```
 yarn install
-yarn run install-submodules;
 ```
 
 ## install nargo (noir)
@@ -30,4 +27,9 @@ cd circuits/test;
 nargo test --show-output
 ```
 
+
 ## usage 
+run storage proof decoder js
+```shell
+node  ./scripts/fetchStorageProof.js --mappingMode --contractAddress=0x5300000000000000000000000000000000000004 --key=0xf1B42cc7c1609445620dE4352CD7e58353C3FA74 --slot=0x00 --keyType=address --decode
+```
