@@ -174,6 +174,12 @@ function splitArr(_arr,groupSize) {
     return newArr
 }
 
+export function hashStorageKeyMapping({ key, keyType, slot }) {
+    const abiCoder = new ethers.AbiCoder()
+    const preImage = abiCoder.encode([keyType, "uint256"], [key, slot])
+    return ethers.keccak256(preImage)
+  }
+
 /**
  * 
  * @param {hexString} val 

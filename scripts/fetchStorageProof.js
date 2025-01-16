@@ -3,14 +3,7 @@
 
 import { ArgumentParser } from 'argparse';
 import { ethers, assert } from 'ethers';
-import { decodeProof } from "./decodeScrollProof.js"
-
-
-export function hashStorageKeyMapping({ key, keyType, slot }) {
-  const abiCoder = new ethers.AbiCoder()
-  const preImage = abiCoder.encode([keyType, "uint256"], [key, slot])
-  return ethers.keccak256(preImage)
-}
+import { decodeProof , hashStorageKeyMapping} from "./decodeScrollProof.js"
 
 export async function getProof({ provider, blockNumber, contractAddress, storageKey, decode=true }) {
   storageKey = ethers.zeroPadValue(storageKey, 32)
