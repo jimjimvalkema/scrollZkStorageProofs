@@ -6,15 +6,15 @@ use dep::std::field::bytes32_to_field;
 // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/hash.go#L16
 global HASH_DOMAIN_ELEMS_BASE:Field = 256; // TODO maybe change to u8 ??
 global HASH_DOMAIN_BYTE32:Field     = 2 * HASH_DOMAIN_ELEMS_BASE;
-global ACCOUNT_LEAF_VALUE_PREIMAGE_LEN =  5;
+global ACCOUNT_LEAF_VALUE_PREIMAGE_LEN:u32 =  5;
 global HASH_DOMAIN_ACCOUNT_LEAF:Field = 5 * HASH_DOMAIN_ELEMS_BASE;
 
 // WARNING can change after upgrades if it no longer the 4th item in the header 
 // or if ParentHash, UncleHash, Coinbase byte lenght changes
 // actually rlp decoding can be used but it would be computationally costly
-global STATE_ROOT_BLOCK_HEADER_OFFSET = 91;
+global STATE_ROOT_BLOCK_HEADER_OFFSET:u32 = 91;
 
-struct Hash_path_proof<let N: u32> {
+pub struct Hash_path_proof<let N: u32> {
         hash_path: [Field;N],
         node_types: [Field;N],
         leaf_type: Field,
@@ -22,13 +22,13 @@ struct Hash_path_proof<let N: u32> {
         hash_path_bools: [bool;N]
     }
 
-struct Hash_paths_state_proof<let S: u32,let A: u32> {
+pub struct Hash_paths_state_proof<let S: u32,let A: u32> {
     storage_proof: Hash_path_proof<S>,
     account_proof: Hash_path_proof<A>
 }
 
 
-struct Account_preimage_excl_storage {
+pub struct Account_preimage_excl_storage {
     nonce_codesize_0: Field,
     balance: Field,
     compressed_keccak_code_hash: Field,

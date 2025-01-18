@@ -15,9 +15,9 @@ use dep::ScrollStorageProver::{
 };
 
 //WARNING should be 254 but set to 25 to make test easier to change and read
-global MAX_TREE_DEPTH = 26;
-global MAX_BYTES_BLOCK_HASH_PREIMAGE = 680; //should be enough scroll mainnet wasn't going above 621, my guess is 673 bytes max + rlp over head. idk what overhead is tho.
-global HASH_DOMAIN_BYTE32 = 512;
+global MAX_TREE_DEPTH: u32 = 26;
+global MAX_BYTES_BLOCK_HASH_PREIMAGE: u32 = 680; //should be enough scroll mainnet wasn't going above 621, my guess is 673 bytes max + rlp over head. idk what overhead is tho.
+global HASH_DOMAIN_BYTE32: Field = 512;
 
 #[test]
 fn test_poseidon_2() {
