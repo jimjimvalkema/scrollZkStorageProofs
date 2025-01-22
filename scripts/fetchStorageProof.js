@@ -3,7 +3,8 @@
 
 import { ArgumentParser } from 'argparse';
 import { ethers, assert } from 'ethers';
-import { decodeProof , hashStorageKeyMapping} from "./decodeScrollProof.js"
+import { decodeProof , hashStorageKeyMapping, getBlockHeaderProof} from "./decodeScrollProof.js"
+
 
 export async function getProof({ provider, blockNumber, contractAddress, storageKey, decode=true }) {
   storageKey = ethers.zeroPadValue(storageKey, 32)
@@ -11,12 +12,13 @@ export async function getProof({ provider, blockNumber, contractAddress, storage
 
   const params = [contractAddress, [storageKey], blockNumberHex,]
   const proof = await provider.send('eth_getProof', params)
+  const blockProof = await getBlockHeaderProof({blockNumber, provider})
 
   if (decode) {
     const decodedProof = decodeProof({proof,provider,blockNumber})
-    return decodedProof
+    return {proof: decodedProof, blockProof}
   } else {
-    return proof
+    return {proof, blockProof}
   }
 }
 
@@ -24,12 +26,13 @@ export async function getProof({ provider, blockNumber, contractAddress, storage
 export async function getProofOfMapping({ provider, blockNumber, contractAddress, slot, key, keyType , decode=true}) {
   const storageKey = hashStorageKeyMapping({ key, keyType, slot })
   const proof = await getProof({ provider, blockNumber, contractAddress, storageKey, decode:false })
+  const blockProof = await getBlockHeaderProof({blockNumber, provider})
 
   if (decode) {
     const decodedProof = decodeProof({proof,provider,blockNumber})
-    return decodedProof
+    return {proof: decodedProof, blockProof}
   } else {
-    return proof
+    return {proof, blockProof}
   }
 }
 

@@ -111,7 +111,7 @@ pub fn hash_account_leaf(
     node_key: Field,
     nonce_codesize_0: Field, 
     balance: Field, 
-    storageRoot: Field,  
+    storage_root: Field,  
     compressed_keccak_code_hash: Field,
     poseidon_code_hash: Field,
     node_type: Field
@@ -134,7 +134,7 @@ pub fn hash_account_leaf(
     //                                 /          \
     //                                /            \
     //                               /              \
-    // h{domain}(nonce||codesize||0, balance)  h{domain}(storageRoot, compressed_keccak_code_hash)
+    // h{domain}(nonce||codesize||0, balance)  h{domain}(storage_root, compressed_keccak_code_hash)
     let value_hash: Field = 
         poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
             poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
@@ -142,7 +142,7 @@ pub fn hash_account_leaf(
                 poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [nonce_codesize_0, balance]),
 
                 poseidon2_domain(HASH_DOMAIN_ACCOUNT_LEAF, [
-                    storageRoot,
+                    storage_root,
                     compressed_keccak_code_hash
                     ])
             ]),
@@ -156,6 +156,7 @@ pub fn hash_account_leaf(
 
 // A = account proof hash_path lenght
 // S = storage proof hash_path lenght
+// R = *max* lenght of the header_rlp (preimage blockhash), different from the *actual* length of the rlp (set at header_rlp_len)
 
 // ex mapping of balances erc20
 // key = user address
@@ -163,29 +164,35 @@ pub fn hash_account_leaf(
 // value = user balance (padded zeros at start)
 // padded_contract = the contract address but with zeros at the start *left*
 // hash_paths and account_preimage is extra information needed to compute the proof
-pub fn storage_proof_on_mapping<let A: u32,let S: u32>(
+pub fn mapping_slot_to_blockhash<let A: u32, let S: u32, let R:u32>(
         key: [u8;32], 
         slot: [u8; 32], 
         value:  [u8; 32], 
-        padded_contract: [u8;32], 
-        hash_paths: Hash_paths_state_proof<A,S>, 
-        account_preimage: Account_preimage_excl_storage
-    ) -> Field {
+        padded_contract: [u8; 32], 
+        //hash_paths: Hash_paths_state_proof<A,S>, 
+        account_proof: Hash_path_proof<A>,
+        storage_proof: Hash_path_proof<S>,
+        account_preimage: Account_preimage_excl_storage,
+        header_rlp: [u8; R],
+        header_rlp_len: u32
+    ) -> [u8; 32] {
     
     // -----get storage_root from storage proof------
     // leafhash
     let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
     let storage_leaf_hash = hash_storage_leaf(
             storage_node_key,
-            value,hash_paths.storage_proof.leaf_type
+            value,
+            storage_proof.leaf_type
         );
 
     // merkle proof
     let storage_root = compute_merkle_root(
-            storage_leaf_hash, hash_paths.storage_proof.hash_path,
-            hash_paths.storage_proof.node_types, 
-            hash_paths.storage_proof.real_hash_path_len, 
-            hash_paths.storage_proof.hash_path_bools
+            storage_leaf_hash, 
+            storage_proof.hash_path,
+            storage_proof.node_types, 
+            storage_proof.real_hash_path_len, 
+            storage_proof.hash_path_bools
         );
     
     // -----------get state root -------------
@@ -201,23 +208,29 @@ pub fn storage_proof_on_mapping<let A: u32,let S: u32>(
             storage_root, // input from storage proof
             account_preimage.compressed_keccak_code_hash,
             account_preimage.poseidon_code_hash,
-            hash_paths.account_proof.leaf_type
+            account_proof.leaf_type
         );
 
     // merkle proof
     let state_root = compute_merkle_root(
-            account_leaf_hash, hash_paths.account_proof.hash_path,
-            hash_paths.account_proof.node_types, 
-            hash_paths.account_proof.real_hash_path_len, 
-            hash_paths.account_proof.hash_path_bools
+            account_leaf_hash, 
+            account_proof.hash_path,
+            account_proof.node_types, 
+            account_proof.real_hash_path_len, 
+            account_proof.hash_path_bools
         );
 
+    // proof that state_root is inside the blockhash
+    let new_header_rlp:[u8;R] = set_state_root(header_rlp, state_root.to_be_bytes());
+    let block_hash:[u8;32] = keccak256(new_header_rlp, header_rlp_len);
+    
     // done
-    state_root
+    block_hash
 }
 
 
-
+// what cost more get_state_root + assert(computed_root == state_root)
+// or new_rlp = set_state_root()
 pub fn get_state_root<let N: u32>(header_rlp: [u8;N]) -> [u8; 32] {
     // header_rlp[STATE_ROOT_BLOCK_HEADER_OFFSET, STATE_ROOT_BLOCK_HEADER_OFFSET+32]
     let mut state_root:[u8;32] = [0;32];
@@ -225,6 +238,20 @@ pub fn get_state_root<let N: u32>(header_rlp: [u8;N]) -> [u8; 32] {
         state_root[i] = header_rlp[STATE_ROOT_BLOCK_HEADER_OFFSET+i];
     }
     state_root
+}
+
+pub fn set_state_root<let N: u32>(header_rlp: [u8;N], state_root: [u8; 32]) -> [u8; N] {
+    // header_rlp[STATE_ROOT_BLOCK_HEADER_OFFSET, STATE_ROOT_BLOCK_HEADER_OFFSET+32]
+    let mut new_header_rlp:[u8;N] = header_rlp;
+    for i in 0..32 {
+        new_header_rlp[STATE_ROOT_BLOCK_HEADER_OFFSET+i] = state_root[i];
+    }
+    new_header_rlp
+}
+
+pub fn hash_block_root<let N:u32>(header_rlp: [u8;N], header_rlp_len: u32, state_root: [u8; 32]) -> [u8; 32] {
+    let new_header_rlp:[u8;N] = set_state_root(header_rlp, state_root);
+    keccak256(new_header_rlp, header_rlp_len)
 }
 
 // TODO research unconstraint node_key.to_be_bits(248) (this version is not used since it more costly currently) 

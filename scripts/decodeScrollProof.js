@@ -450,7 +450,7 @@ export async function getOrderedHeaderData({ blockNumber, provider }) {
  * 
  * @returns {rlp, byteNibbleOffsets} proof
  */
-export async function getBlockHeaderProof({blockNumber,headerItems, provider}) {
+export async function getBlockHeaderProof({blockNumber, provider}) {
     blockNumber = ethers.toBeHex(blockNumber)
 
     
