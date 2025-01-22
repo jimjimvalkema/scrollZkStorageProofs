@@ -240,18 +240,11 @@ fn test_mapping_slot_to_blockhash() {
         header_rlp,
         header_rlp_len
     );
-    //0x805f76c5a44e447909bf8d449b409415afa02dd145def3524ec4bf08a9d2e149
+
+    // 0x4060eef3b5a5f2870274b030e8d83c69d2f213fe4d1bd841ea9be2907f79c95d
+    // https://sepolia.scrollscan.com/block/7959781
     println(block_hash);
     assert(block_hash == [64,96,238,243,181,165,242,135,2,116,176,48,232,216,60,105,210,242,19,254,77,27,216,65,234,155,226,144,127,121,201,93], "block hash didnt match");
-
-
-
-    // // proving
-    // let computed_state_root = mapping_slot_to_blockhash(user_address, slot, user_balance, padded_contract, hash_paths, account_preimage);
-    // let state_root = 0x166065fc76a540ec1ec944e4a8e409c8d9615b77621504efff154e0132f8e8f8;
-    // assert(computed_state_root == state_root, "computed_root doesnt match storage root");
-
-    // assert(bytes32_to_field(state_root_rlp) == computed_state_root, "state root doesnt match. Did the header layout change?");
 }
 
 // related to a bug in noir 0.33.0 and 0.34.0

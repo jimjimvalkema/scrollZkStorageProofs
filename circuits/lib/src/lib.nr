@@ -85,8 +85,7 @@ pub fn compute_merkle_root<let N: u32>(leaf_hash: Field,hash_path: [Field; N], n
     current
 }
 
-
-
+// TODO do hash node key for none mapping
 pub fn hash_node_key_from_mapping(key: [u8; 32], slot: [u8; 32]) -> Field {
     // node key preImage Hashing. NodeKeyPreImage = storageProof.key
     let storage_key_preImg: [u8; 64] = key.as_slice().append(slot.as_slice()).as_array();
@@ -96,6 +95,10 @@ pub fn hash_node_key_from_mapping(key: [u8; 32], slot: [u8; 32]) -> Field {
     // https://github.com/scroll-tech/zktrie/blob/23181f209e94137f74337b150179aeb80c72e7c8/types/util.go#L107
     let storage_key_split:[Field;2] = split_byte32_to_fields(storage_key_bytes);
     poseidon2_domain(HASH_DOMAIN_BYTE32, storage_key_split)
+}
+
+pub fn hash_node_key_account(address: [u8;32]) -> Field {
+    poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(address))
 }
 
 pub fn hash_storage_leaf(node_key: Field, value_preimage: [u8; 32], leaf_node_type: Field) -> Field {
@@ -154,32 +157,13 @@ pub fn hash_account_leaf(
 
 }
 
-// A = account proof hash_path lenght
-// S = storage proof hash_path lenght
-// R = *max* lenght of the header_rlp (preimage blockhash), different from the *actual* length of the rlp (set at header_rlp_len)
-
-// ex mapping of balances erc20
-// key = user address
-// slot = storage slot where the _balances map is stored
-// value = user balance (padded zeros at start)
-// padded_contract = the contract address but with zeros at the start *left*
-// hash_paths and account_preimage is extra information needed to compute the proof
-pub fn mapping_slot_to_blockhash<let A: u32, let S: u32, let R:u32>(
-        key: [u8;32], 
-        slot: [u8; 32], 
-        value:  [u8; 32], 
-        padded_contract: [u8; 32], 
-        //hash_paths: Hash_paths_state_proof<A,S>, 
-        account_proof: Hash_path_proof<A>,
-        storage_proof: Hash_path_proof<S>,
-        account_preimage: Account_preimage_excl_storage,
-        header_rlp: [u8; R],
-        header_rlp_len: u32
-    ) -> [u8; 32] {
-    
-    // -----get storage_root from storage proof------
+pub fn leaf_to_storage_root<let A:u32>(
+        storage_node_key: Field,
+        value: [u8;32],
+        storage_proof: Hash_path_proof<A>
+    ) -> Field {
+        // -----get storage_root from storage proof------
     // leafhash
-    let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
     let storage_leaf_hash = hash_storage_leaf(
             storage_node_key,
             value,
@@ -194,31 +178,84 @@ pub fn mapping_slot_to_blockhash<let A: u32, let S: u32, let R:u32>(
             storage_proof.real_hash_path_len, 
             storage_proof.hash_path_bools
         );
-    
-    // -----------get state root -------------
-    // get state root from account proof using storage_root as input
-    // https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
-    
-    // leafhash
-    let account_node_key: Field = poseidon2_domain(HASH_DOMAIN_BYTE32, split_byte32_to_fields(padded_contract));
+    storage_root
+}
+
+pub fn leaf_to_state_root<let A:u32>(
+    account_node_key: Field, 
+    account_preimage: Account_preimage_excl_storage,
+    storage_root: Field,
+    account_proof: Hash_path_proof<A>
+
+    ) -> Field {
+
     let account_leaf_hash = hash_account_leaf(
-            account_node_key, // contains hashed contract address
-            account_preimage.nonce_codesize_0,
-            account_preimage.balance,
-            storage_root, // input from storage proof
-            account_preimage.compressed_keccak_code_hash,
-            account_preimage.poseidon_code_hash,
-            account_proof.leaf_type
-        );
+        account_node_key, // contains hashed contract address
+        account_preimage.nonce_codesize_0,
+        account_preimage.balance,
+        storage_root, // input from storage proof
+        account_preimage.compressed_keccak_code_hash,
+        account_preimage.poseidon_code_hash,
+        account_proof.leaf_type
+    );
 
     // merkle proof
     let state_root = compute_merkle_root(
-            account_leaf_hash, 
-            account_proof.hash_path,
-            account_proof.node_types, 
-            account_proof.real_hash_path_len, 
-            account_proof.hash_path_bools
-        );
+        account_leaf_hash, 
+        account_proof.hash_path,
+        account_proof.node_types, 
+        account_proof.real_hash_path_len, 
+        account_proof.hash_path_bools
+    );
+    state_root
+}
+
+// A = account proof hash_path lenght
+// S = storage proof hash_path lenght
+// R = *max* lenght of the header_rlp (preimage blockhash), different from the *actual* length of the rlp (set at header_rlp_len)
+
+// ex mapping of balances erc20
+// key = user address
+// slot = storage slot where the _balances map is stored
+// value = user balance (padded zeros at start)
+// padded_contract = the contract address but with zeros at the start *left*
+// hash_paths and account_preimage is extra information needed to compute the proof
+/*
+      blockhash
+            |
+    keccak256(parentHash, UncleHash, Coinbase, stateRoot, etc)
+                                                    |
+                                                poseidon
+                                                    /\
+                                                   /  \
+                                     our account leaf  other accounts
+                                            |
+                poseidon(storage_root, other account data)
+                            /\
+                           /  \
+                    our slot
+*/
+pub fn mapping_slot_to_blockhash<let A: u32, let S: u32, let R:u32>(
+        key: [u8;32], 
+        slot: [u8; 32], 
+        value:  [u8; 32], 
+        padded_contract: [u8; 32], 
+        //hash_paths: Hash_paths_state_proof<A,S>, 
+        account_proof: Hash_path_proof<A>,
+        storage_proof: Hash_path_proof<S>,
+        account_preimage: Account_preimage_excl_storage,
+        header_rlp: [u8; R],
+        header_rlp_len: u32
+    ) -> [u8; 32] {
+    
+    // merkle proof from slot to the storage_root of the contract
+    let storage_node_key: Field = hash_node_key_from_mapping(key, slot);
+    let storage_root = leaf_to_storage_root(storage_node_key, value, storage_proof);
+    
+    // merkle proof from account to the state_root
+    // to proof that our storage_root from that contract is part of the ethereum state
+    let account_node_key: Field = hash_node_key_account(padded_contract);
+    let state_root = leaf_to_state_root(account_node_key, account_preimage, storage_root, account_proof);
 
     // proof that state_root is inside the blockhash
     let new_header_rlp:[u8;R] = set_state_root(header_rlp, state_root.to_be_bytes());
@@ -249,6 +286,9 @@ pub fn set_state_root<let N: u32>(header_rlp: [u8;N], state_root: [u8; 32]) -> [
     new_header_rlp
 }
 
+// -----------get state root -------------
+// get state root from account proof using storage_root as input
+// https://github.com/scroll-tech/go-ethereum/blob/418bc6f728b66ec9eafab3f3b0ceb14078d8a050/core/types/block.go#L69
 pub fn hash_block_root<let N:u32>(header_rlp: [u8;N], header_rlp_len: u32, state_root: [u8; 32]) -> [u8; 32] {
     let new_header_rlp:[u8;N] = set_state_root(header_rlp, state_root);
     keccak256(new_header_rlp, header_rlp_len)
