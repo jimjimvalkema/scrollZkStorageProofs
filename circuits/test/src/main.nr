@@ -231,11 +231,11 @@ fn test_mapping_slot_to_blockhash() {
 
     let block_hash:[u8;32] = mapping_slot_to_blockhash(
         user_address, 
-        slot, 
         user_balance, 
-        padded_contract, 
-        account_proof,
+        slot, 
         storage_proof, 
+        account_proof,
+        padded_contract, 
         account_preimage,
         header_rlp,
         header_rlp_len

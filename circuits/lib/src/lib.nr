@@ -237,12 +237,11 @@ pub fn leaf_to_state_root<let A:u32>(
 */
 pub fn mapping_slot_to_blockhash<let A: u32, let S: u32, let R:u32>(
         key: [u8;32], 
-        slot: [u8; 32], 
         value:  [u8; 32], 
-        padded_contract: [u8; 32], 
-        //hash_paths: Hash_paths_state_proof<A,S>, 
-        account_proof: Hash_path_proof<A>,
+        slot: [u8; 32], 
         storage_proof: Hash_path_proof<S>,
+        account_proof: Hash_path_proof<A>,
+        padded_contract: [u8; 32], 
         account_preimage: Account_preimage_excl_storage,
         header_rlp: [u8; R],
         header_rlp_len: u32
