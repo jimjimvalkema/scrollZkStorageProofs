@@ -466,7 +466,7 @@ export async function getBlockHeaderProof({blockNumber, provider}) {
     const stateRootFromRlp = "0x"+rlp.slice(2+offset, 2+64+offset)
     const isCorrectHash = ethers.keccak256(rlp) === block.hash
     const isCorrectOffset = stateRootFromRlp === block.stateRoot
-    console.log("created rlp header (debug): ",{rlp,isCorrectHash, isCorrectOffset, blockHash:block.hash, blocknum: Number(block.number)})
+    //console.log("created rlp header (debug): ",{rlp,isCorrectHash, isCorrectOffset, blockHash:block.hash, blocknum: Number(block.number)})
     //----------
 
     //const headerDataAsObject = Object.fromEntries(headerData.map((item)=>[item.name, item.data]))
@@ -494,7 +494,8 @@ export async function getBlockHeaderProof({blockNumber, provider}) {
  * @property {ethers.BytesLike[]} hashPath from leaf-hash-sibling to root-child
  * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
- * 
+ * @property {ethers.BytesLike} storageRoot
+ *  
  * @typedef {{accountProof: merkleProofData, storageProof: merkleProofData, headerProof: headerProof, blockNumber: number }} decodedProof
  * 
  * @returns {decodedProof} decodedProof
@@ -502,6 +503,7 @@ export async function getBlockHeaderProof({blockNumber, provider}) {
 export async function decodeProof({ proof, provider, blockNumber }) {
     const accountProof = getHashPathFromProof(proof.accountProof)
     const storageProof = getHashPathFromProof(proof.storageProof[0].proof)
+    accountProof.storageRoot = proof.storageHash
     
     const {rlp, byteNibbleOffsets} = await getBlockHeaderProof({blockNumber, provider})
     const headerProof = {rlp, stateRootOffset: byteNibbleOffsets.stateRoot.offset/2}

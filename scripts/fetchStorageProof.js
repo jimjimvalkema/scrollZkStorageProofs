@@ -12,13 +12,14 @@ export async function getProof({ provider, blockNumber, contractAddress, storage
 
   const params = [contractAddress, [storageKey], blockNumberHex,]
   const proof = await provider.send('eth_getProof', params)
-  const blockProof = await getBlockHeaderProof({blockNumber, provider})
+  const {rlp, byteNibbleOffsets} = await getBlockHeaderProof({blockNumber, provider})
+  const headerProof = {rlp, stateRootOffset: byteNibbleOffsets.stateRoot.offset/2}
 
   if (decode) {
-    const decodedProof = decodeProof({proof,provider,blockNumber})
-    return {proof: decodedProof, blockProof}
+    const decodedProof = await decodeProof({proof: proof.proof,provider,blockNumber})
+    return decodedProof
   } else {
-    return {proof, blockProof}
+    return {proof, headerProof, blockNumber}
   }
 }
 
@@ -26,13 +27,11 @@ export async function getProof({ provider, blockNumber, contractAddress, storage
 export async function getProofOfMapping({ provider, blockNumber, contractAddress, slot, key, keyType , decode=true}) {
   const storageKey = hashStorageKeyMapping({ key, keyType, slot })
   const proof = await getProof({ provider, blockNumber, contractAddress, storageKey, decode:false })
-  const blockProof = await getBlockHeaderProof({blockNumber, provider})
-
   if (decode) {
-    const decodedProof = decodeProof({proof,provider,blockNumber})
-    return {proof: decodedProof, blockProof}
+    const decodedProof = await decodeProof({proof: proof.proof,provider,blockNumber})
+    return decodedProof
   } else {
-    return {proof, blockProof}
+    return proof
   }
 }
 
@@ -81,7 +80,7 @@ async function main() {
       process.exit(1);
     } else {
       const proof = await getProofOfMapping({ provider, blockNumber: args.blockNumber, contractAddress: args.contractAddress, slot: args.slot, key: args.key, keyType: args.keyType , decode:args.decode})
-      console.log(proof)
+      process.stdout.write(JSON.stringify(proof, null, 2) + '\n');
       process.exit(0);
 
     }
@@ -93,7 +92,7 @@ async function main() {
       process.exit(1);
     } else {
       const proof = await getProof({ provider, blockNumber: args.blockNumber, contractAddress: args.contractAddress, storageKey: args.slot, decode:args.decode })
-      console.log(proof)
+      process.stdout.write(JSON.stringify(proof, null, 2) + '\n');
       process.exit(0);
     }
   }
