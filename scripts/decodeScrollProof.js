@@ -1,7 +1,7 @@
 import {poseidon2}  from "poseidon-lite-with-domain"
 import {N, assert, ethers} from "ethers"
-import { ZkTrieNode, NodeTypes, leafTypes, ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING, getBlockHeaderOrdering, HASH_DOMAIN_BYTE32 } from "./types/ZkTrieNode.js";
-import {Zkt} from "./types/Zkt.js"
+import { ZkTrieNode, NodeTypes, leafTypes, ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING, getBlockHeaderOrdering } from "./types/ZkTrieNode.js";
+import {Zkt, HASH_DOMAIN_BYTE32} from "./types/Zkt.js"
 import * as fs from 'node:fs/promises';
 
 
