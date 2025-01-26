@@ -503,7 +503,6 @@ function compressKeccakCodeHash(keccakCodeHash) {
  * @property {ethers.BytesLike[]} hashPath from leaf-hash-sibling to root-child
  * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
- * @property {ethers.BytesLike} storageRoot
  * 
  * @typedef {merkleProofData & {
  *      keccakCodeHash: ethers.BytesLike,
