@@ -524,7 +524,7 @@ function compressKeccakCodeHash(keccakCodeHash) {
  *      blockNumber: number 
  * }} decodedProof
  * 
- * @returns {decodedProof} decodedProof
+ * @returns {Promise<decodedProof>} decodedProof
  */
 export async function decodeProof({ proof, provider, blockNumber }) {
     const accountProof = getHashPathFromProof(proof.accountProof)
