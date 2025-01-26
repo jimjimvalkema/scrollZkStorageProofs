@@ -23,3 +23,6 @@ export class Zkt {
     }
 
 }
+
+export const HASH_DOMAIN_ELEMS_BASE = 256;
+export const HASH_DOMAIN_BYTE32     = 2 * HASH_DOMAIN_ELEMS_BASE;

@@ -1,6 +1,6 @@
 import {poseidon2}  from "poseidon-lite-with-domain"
 import {N, assert, ethers} from "ethers"
-import { ZkTrieNode, NodeTypes, leafTypes, ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING, getBlockHeaderOrdering } from "./types/ZkTrieNode.js";
+import { ZkTrieNode, NodeTypes, leafTypes, ACCOUNT_VALUE_HASH_PREIAMGE_ENCODING, getBlockHeaderOrdering, HASH_DOMAIN_BYTE32 } from "./types/ZkTrieNode.js";
 import {Zkt} from "./types/Zkt.js"
 import * as fs from 'node:fs/promises';
 
@@ -483,6 +483,15 @@ export async function getBlockHeaderProof({blockNumber, provider}) {
     }))
     return {rlp, byteNibbleOffsets}
 }
+/**
+ * @param {ethers.BytesLike|String} keccakCodeHash 
+ * @returns {ethers.BytesLike} compressedKeccakCodeHash
+ */
+function compressKeccakCodeHash(keccakCodeHash) {
+    const compKeccakPreImage = ["0x"+keccakCodeHash.slice(2, 2+32), "0x"+keccakCodeHash.slice(2+32, 2+64)]
+    const compressedKeccakCodeHash = ethers.toBeHex(poseidon2(compKeccakPreImage, HASH_DOMAIN_BYTE32))
+    return compressedKeccakCodeHash
+}
 
 /**
  * @param {Object} obj 
@@ -495,15 +504,41 @@ export async function getBlockHeaderProof({blockNumber, provider}) {
  * @property {number[]} nodeTypes from leaf-hash-sibling to root-child
  * @property {ZkTrieNode} leafNode used for the leafHash and nodeKey/hashPathBools in proving
  * @property {ethers.BytesLike} storageRoot
+ * 
+ * @typedef {merkleProofData & {
+ *      keccakCodeHash: ethers.BytesLike,
+ *      accountPreimage: {
+ *          nonce: ethers.BytesLike,
+ *          codesize: ethers.BytesLike,
+ *          balance: ethers.BytesLike,
+ *          storageRoot: ethers.BytesLike
+ *          compressedKeccakCodehash: ethers.BytesLike,
+ *          poseidonCodeHash: ethers.BytesLike
+ *      }
+ * }} accountProofData
  *  
- * @typedef {{accountProof: merkleProofData, storageProof: merkleProofData, headerProof: headerProof, blockNumber: number }} decodedProof
+ * @typedef {{
+ *      accountProof: accountProofData, 
+ *      storageProof: merkleProofData, 
+ *      headerProof: headerProof, 
+ *      blockNumber: number 
+ * }} decodedProof
  * 
  * @returns {decodedProof} decodedProof
  */
 export async function decodeProof({ proof, provider, blockNumber }) {
     const accountProof = getHashPathFromProof(proof.accountProof)
     const storageProof = getHashPathFromProof(proof.storageProof[0].proof)
-    accountProof.storageRoot = proof.storageHash
+    const accountPreimage = {
+        nonce: proof.nonce,
+        codesize: proof.codeSize,
+        balance: proof.balance,
+        storageRoot: proof.storageHash,
+        compressedKeccakCodehash: compressKeccakCodeHash(proof.keccakCodeHash),
+        poseidonCodeHash: proof.poseidonCodeHash
+    }
+    accountProof.accountPreimage = accountPreimage
+    accountProof.keccakCodeHash = proof.keccakCodeHash
     
     const {rlp, byteNibbleOffsets} = await getBlockHeaderProof({blockNumber, provider})
     const headerProof = {rlp, stateRootOffset: byteNibbleOffsets.stateRoot.offset/2}
