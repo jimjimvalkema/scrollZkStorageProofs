@@ -4,7 +4,7 @@ import { ZkTrieNode, NodeTypes, leafTypes } from "./types/ZkTrieNode.js";
 import {Zkt} from "./types/Zkt.js"
 import * as fs from 'node:fs/promises';
 
-import storageProofMapping from './out/scrollProofMapping.json' assert {type: 'json'}
+import storageProofMapping from './out/scrollProofMapping.json'  with { type: "json" }; //assert {type: 'json'}
 
 //----some stuff so i can test things in the browser console (i prefer it)
 let windowIsEmpty = true
