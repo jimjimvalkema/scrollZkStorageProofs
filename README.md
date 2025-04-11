@@ -1,6 +1,8 @@
 # scrollZkStorageProofs
 install node version 22 or higher
 
+## deprecation notice
+Scroll is going to switch to a keccak based MPT state trie in the [euclid upgrade](https://x.com/shenhaichen/status/1910527255920730363). But this repo is build around the old state model.
 
 ## install js
 ```
